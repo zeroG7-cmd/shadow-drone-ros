@@ -1,34 +1,100 @@
 <?xml version="1.0"?>
 <robot name="shadow_drone" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+  <!-- Parameters -->
+  <xacro:property name="frame_x" value="0.25"/>
+  <xacro:property name="frame_y" value="0.25"/>
+  <xacro:property name="frame_z" value="0.02"/>
+
+  <xacro:property name="battery_x" value="0.07"/>
+  <xacro:property name="battery_y" value="0.035"/>
+  <xacro:property name="battery_z" value="0.025"/>
+
+  <xacro:property name="stack_x" value="0.09"/>
+  <xacro:property name="stack_y" value="0.065"/>
+  <xacro:property name="stack_z" value="0.04"/>
+
+  <xacro:property name="lidar_radius" value="0.035"/>
+  <xacro:property name="lidar_height" value="0.04"/>
+
+  <xacro:property name="camera_x" value="0.025"/>
+  <xacro:property name="camera_y" value="0.025"/>
+  <xacro:property name="camera_z" value="0.015"/>
+
   <!-- Base Link -->
   <link name="base_link">
     <visual>
       <geometry>
-        <box size="0.5 0.5 0.1"/>
+        <box size="${frame_x} ${frame_y} ${frame_z}"/>
       </geometry>
       <material name="gray">
-       <color rgba="0.5 0.5 0.5 1.0"/>
+        <color rgba="0.5 0.5 0.5 1.0"/>
       </material>
     </visual>
     <collision>
       <geometry>
-        <box size="0.5 0.5 0.1"/>
+        <box size="${frame_x} ${frame_y} ${frame_z}"/>
       </geometry>
     </collision>
     <inertial>
-  <mass value="1.0"/>
-  <origin xyz="0 0 0" rpy="0 0 0"/>
-  <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      <mass value="0.15"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
     </inertial>
   </link>
 
-    <!-- LiDAR sensor -->
-  <link name="lidar_link"/>
-  <joint name="lidar_joint" type="fixed">
+  <!-- Battery -->
+  <link name="battery_link">
+    <visual>
+      <geometry>
+        <box size="${battery_x} ${battery_y} ${battery_z}"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.2 0.2 0.8 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="battery_joint" type="fixed">
     <parent link="base_link"/>
+    <child link="battery_link"/>
+    <origin xyz="0 0 -0.04" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Pi + Navio Stack -->
+  <link name="stack_link">
+    <visual>
+      <geometry>
+        <box size="${stack_x} ${stack_y} ${stack_z}"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="stack_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="stack_link"/>
+    <origin xyz="0 0 0.04" rpy="0 0 0"/>
+  </joint>
+
+  <!-- LiDAR -->
+  <link name="lidar_link">
+    <visual>
+      <geometry>
+        <cylinder radius="${lidar_radius}" length="${lidar_height}"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0.2 0.8 0.2 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="lidar_joint" type="fixed">
+    <parent link="stack_link"/>
     <child link="lidar_link"/>
-    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <origin xyz="0 0 0.05" rpy="0 0 0"/>
   </joint>
 
   <gazebo reference="lidar_link">
@@ -61,29 +127,42 @@
     </sensor>
   </gazebo>
 
-  <!-- Camera sensor -->
-  <link name="camera_link"/>
+  <!-- Camera -->
+  <link name="camera_link">
+    <visual>
+      <geometry>
+        <box size="${camera_x} ${camera_y} ${camera_z}"/>
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0.2 0.2 1.0"/>
+      </material>
+    </visual>
+  </link>
+
   <joint name="camera_joint" type="fixed">
-    <parent link="base_link"/>
+    <parent link="stack_link"/>
     <child link="camera_link"/>
-    <origin xyz="0.1 0 0" rpy="0 0 0"/>
+    <origin xyz="0.06 0 0.0" rpy="0 0 0"/>
   </joint>
+
   <gazebo reference="camera_link">
-    <sensor type="camera" name="camera">
+    <sensor type="camera" name="camera_sensor">
+      <always_on>true</always_on>
+      <update_rate>30.0</update_rate>
       <camera>
         <horizontal_fov>1.047</horizontal_fov>
         <image>
           <width>640</width>
           <height>480</height>
+          <format>R8G8B8</format>
         </image>
         <clip>
           <near>0.1</near>
-          <far>100</far>
+          <far>100.0</far>
         </clip>
       </camera>
       <plugin name="gazebo_ros_camera" filename="libgazebo_ros_camera.so">
-        <topicName>/camera/image_raw</topicName>
-        <frameName>camera_link</frameName>
+        <frame_name>camera_link</frame_name>
       </plugin>
     </sensor>
   </gazebo>
