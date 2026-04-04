@@ -100,7 +100,7 @@
   <gazebo reference="lidar_link">
     <sensor type="ray" name="lidar_sensor">
       <always_on>true</always_on>
-      <visualize>true</visualize>
+      <visualize>false</visualize>
       <update_rate>10</update_rate>
       <ray>
         <scan>
@@ -166,5 +166,69 @@
       </plugin>
     </sensor>
   </gazebo>
+
+
+<!-- Motors -->
+  <link name="motor_front_left">
+    <visual>
+      <geometry>
+        <cylinder radius="0.014" length="0.03"/>
+      </geometry>
+      <material name="motor_red">
+        <color rgba="0.8 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="motor_front_left_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="motor_front_left"/>
+    <origin xyz="-0.125 0.125 0.0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="motor_front_right">
+    <visual>
+      <geometry>
+        <cylinder radius="0.014" length="0.03"/>
+      </geometry>
+      <material name="motor_red"/>
+    </visual>
+  </link>
+
+  <joint name="motor_front_right_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="motor_front_right"/>
+    <origin xyz="0.125 0.125 0.0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="motor_rear_left">
+    <visual>
+      <geometry>
+        <cylinder radius="0.014" length="0.03"/>
+      </geometry>
+      <material name="motor_red"/>
+    </visual>
+  </link>
+
+  <joint name="motor_rear_left_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="motor_rear_left"/>
+    <origin xyz="-0.125 -0.125 0.0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="motor_rear_right">
+    <visual>
+      <geometry>
+        <cylinder radius="0.014" length="0.03"/>
+      </geometry>
+      <material name="motor_red"/>
+    </visual>
+  </link>
+
+  <joint name="motor_rear_right_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="motor_rear_right"/>
+    <origin xyz="0.125 -0.125 0.0" rpy="0 0 0"/>
+  </joint>
 
 </robot>
