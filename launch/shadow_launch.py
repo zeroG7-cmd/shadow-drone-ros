@@ -1,49 +1,56 @@
 from launch import LaunchDescription
+from launch.actions import ExecuteProcess
+from launch.substitutions import Command, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess, TimerAction
-import os
+from launch_ros.parameter_descriptions import ParameterValue
+from launch_ros.substitutions import FindPackageShare
+
 
 def generate_launch_description():
-    pkg_share = os.path.join(os.environ['HOME'], 'shadow_ws', 'src', 'shadow_drone')
+    pkg_share = FindPackageShare('shadow_drone')
 
-    world_path = os.path.join(pkg_share, 'worlds', 'empty.world')
-    urdf_path = os.path.join(pkg_share, 'urdf', 'shadow_drone.urdf')
+    xacro_file = PathJoinSubstitution([
+        pkg_share,
+        'urdf',
+        'shadow_drone.xacro'
+    ])
 
-    gazebo = ExecuteProcess(
-        cmd=['gazebo', '--verbose', world_path, '-s', 'libgazebo_ros_factory.so'],
-        output='screen'
+    world_file = PathJoinSubstitution([
+        pkg_share,
+        'worlds',
+        'empty.world'
+    ])
+
+    robot_description = ParameterValue(
+        Command(['xacro ', xacro_file]),
+        value_type=str
     )
 
-    robot_state_publisher_node = Node(
+    robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name='robot_state_publisher',
         output='screen',
-        parameters=[{
-            'robot_description': open(urdf_path).read()
-        }]
+        parameters=[{'robot_description': robot_description}]
     )
 
-    spawn_drone = TimerAction(
-        period=5.0,
-        actions=[
-            Node(
-                package='gazebo_ros',
-                executable='spawn_entity.py',
-                arguments=[
-                    '-entity', 'shadow_drone',
-                    '-file', urdf_path,
-                    '-x', '0',
-                    '-y', '0',
-                    '-z', '0.2'
-                ],
-                output='screen'
-            )
-        ]
+    gazebo = ExecuteProcess(
+        cmd=['gazebo', '--verbose', world_file, '-s', 'libgazebo_ros_factory.so'],
+        output='screen'
+    )
+
+    spawn_entity = Node(
+        package='gazebo_ros',
+        executable='spawn_entity.py',
+        arguments=[
+            '-entity', 'shadow_drone',
+            '-topic', 'robot_description'
+        ],
+        output='screen'
     )
 
     return LaunchDescription([
-        robot_state_publisher_node,
+        robot_state_publisher,
         gazebo,
-        spawn_drone
+        spawn_entity
     ])
