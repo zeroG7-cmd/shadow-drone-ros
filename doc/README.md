@@ -1,3 +1,6 @@
+## Shadow Robotics Architecture
+
+```mermaid
 flowchart TD
 
 RViz["RViz (Visual Debugger)"]
@@ -21,3 +24,4 @@ PX4 --> ROS
 ROS --> Python
 Python --> SQLite
 SQLite --> GitHub
+```
