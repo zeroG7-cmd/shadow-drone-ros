@@ -1,0 +1,191 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <world name="default">
+    <!-- A global light source -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <!-- A ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Physics block copied verbatim from PX4's own empty.world - this is
+         their tuned lockstep timing config, not something to modify. -->
+    <physics name='default_physics' default='0' type='ode'>
+      <gravity>0 0 -9.8066</gravity>
+      <ode>
+        <solver>
+          <type>quick</type>
+          <iters>10</iters>
+          <sor>1.3</sor>
+          <use_dynamic_moi_rescaling>0</use_dynamic_moi_rescaling>
+        </solver>
+        <constraints>
+          <cfm>0</cfm>
+          <erp>0.2</erp>
+          <contact_max_correcting_vel>100</contact_max_correcting_vel>
+          <contact_surface_layer>0.001</contact_surface_layer>
+        </constraints>
+      </ode>
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>250</real_time_update_rate>
+      <magnetic_field>6.0e-6 2.3e-5 -4.2e-5</magnetic_field>
+    </physics>
+
+    <!-- Room: 5m x 4m, walls 2.5m tall. Simple placeholder shapes -
+         everything below is meant to be edited to match your real room,
+         just adjust the <pose> and <size> values directly. -->
+
+    <model name="wall_north">
+      <static>true</static>
+      <pose>0 2 1.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>5 0.1 2.5</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>5 0.1 2.5</size></box></geometry>
+          <material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="wall_south">
+      <static>true</static>
+      <pose>0 -2 1.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>5 0.1 2.5</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>5 0.1 2.5</size></box></geometry>
+          <material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="wall_east">
+      <static>true</static>
+      <pose>2.5 0 1.25 0 0 1.5708</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>4 0.1 2.5</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>4 0.1 2.5</size></box></geometry>
+          <material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="wall_west">
+      <static>true</static>
+      <pose>-2.5 0 1.25 0 0 1.5708</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>4 0.1 2.5</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>4 0.1 2.5</size></box></geometry>
+          <material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Carpet -->
+    <model name="carpet">
+      <static>true</static>
+      <pose>0 -0.5 0.01 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>3 2.5 0.02</size></box></geometry>
+          <material><ambient>0.55 0.25 0.2 1</ambient><diffuse>0.55 0.25 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Sofa, against the south wall - base, backrest, two armrests -->
+    <model name="sofa_base">
+      <static>true</static>
+      <pose>-0.5 -1.6 0.2 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.6 0.7 0.4</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>1.6 0.7 0.4</size></box></geometry>
+          <material><ambient>0.2 0.3 0.45 1</ambient><diffuse>0.2 0.3 0.45 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="sofa_backrest">
+      <static>true</static>
+      <pose>-0.5 -1.9 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.6 0.15 0.6</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>1.6 0.15 0.6</size></box></geometry>
+          <material><ambient>0.2 0.3 0.45 1</ambient><diffuse>0.2 0.3 0.45 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- TV, wall-mounted on the north wall -->
+    <model name="tv">
+      <static>true</static>
+      <pose>0.5 1.92 1.3 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.0 0.05 0.6</size></box></geometry>
+          <material><ambient>0.05 0.05 0.05 1</ambient><diffuse>0.05 0.05 0.05 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Windowsill, on the east wall -->
+    <model name="windowsill">
+      <static>true</static>
+      <pose>2.42 0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>0.15 0.9 0.08</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 0.9 0.08</size></box></geometry>
+          <material><ambient>0.9 0.9 0.9 1</ambient><diffuse>0.9 0.9 0.9 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Pickup / delivery markers and payload, for the mission planner
+         to reference once it exists. 1.2m apart - real, visible distance
+         at this room's scale, not the original 10cm you mentioned, which
+         would barely register at this size. Easy to move closer if you
+         want it tighter once you see it in person. -->
+    <model name="pickup_pad">
+      <static>true</static>
+      <pose>-1 0.5 0.015 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.12</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.2 0.6 1 1</ambient><diffuse>0.2 0.6 1 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="delivery_pad">
+      <static>true</static>
+      <pose>0.2 0.5 0.015 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.12</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.2 1 0.4 1</ambient><diffuse>0.2 1 0.4 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="payload">
+      <pose>-1 0.5 0.06 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.02</mass>
+          <inertia><ixx>0.0001</ixx><iyy>0.0001</iyy><izz>0.0001</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+        </inertial>
+        <collision name="collision"><geometry><box><size>0.08 0.08 0.08</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>0.08 0.08 0.08</size></box></geometry>
+          <material><ambient>0.9 0.6 0.1 1</ambient><diffuse>0.9 0.6 0.1 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
