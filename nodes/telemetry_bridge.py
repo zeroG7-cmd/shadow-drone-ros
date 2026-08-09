@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """
 Telemetry bridge - subscribes to MAVROS, writes real simulation flight
-data into Zero Command's `simulated_telemetry` table (legacy_shadow.db),
-tagged to a tracked `simulation_runs` row.
+data into the R&D database's `simulated_telemetry` table, tagged to a
+tracked `simulation_runs` row.
 
-CORRECTED from an earlier version of this script, which wrote into the
-plain `telemetry` table - that table is architecturally reserved for
-real physical hardware telemetry, never simulation data. This version
-uses the schema as it was actually designed: a `simulation_runs` row
-created once at startup, with each telemetry sample tagged to that
-run's id via `simulated_telemetry`. Keeps simulated and real flight
-data permanently separated, which matters the moment real hardware
-telemetry exists and needs to never be mixed with simulated numbers.
+CORRECTED AGAIN: the previous version of this file wrote into
+legacy_shadow.db - that was wrong. Per the real, authoritative schema
+(zero-command-system/scripts/init_databases.py), simulated_telemetry
+and simulation_runs belong in ZERO_GRAVITY_RND_DB (zerogravity_rnd.db).
+legacy_shadow.db is reserved exclusively for real physical hardware
+tables (vehicle, telemetry, missions, hardware_health, faults,
+maintenance, battery_cycles) - simulation data should never go there.
 
 Real MAVROS topics used, each confirmed against MAVROS's actual plugin
 list from tonight's own logs, not guessed:
@@ -20,15 +19,10 @@ list from tonight's own logs, not guessed:
   /mavros/global_position/global   -> latitude, longitude, altitude
   /mavros/local_position/pose      -> roll, pitch, yaw (via quaternion)
   /mavros/local_position/velocity_local -> velocity_x/y/z
-
-One honest gap: `link_quality` (in the real-hardware `telemetry` table
-only - simulated_telemetry doesn't have this column at all, correctly,
-since link quality is meaningless for a simulated vehicle).
 """
 
 import math
 import sqlite3
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -39,7 +33,7 @@ from mavros_msgs.msg import State
 from sensor_msgs.msg import BatteryState, NavSatFix
 from geometry_msgs.msg import PoseStamped, TwistStamped
 
-DB_PATH = Path.home() / "zeroGravity-rnd" / "lab" / "database" / "legacy_shadow.db"
+DB_PATH = Path.home() / "zeroGravity-rnd" / "lab" / "database" / "zerogravity_rnd.db"
 
 WRITE_INTERVAL_SECONDS = 1.0
 
@@ -100,9 +94,6 @@ class TelemetryBridge(Node):
                                 f'{DB_PATH} every {WRITE_INTERVAL_SECONDS}s')
 
     def _start_simulation_run(self):
-        """Create one simulation_runs row for this session - every
-        telemetry sample below gets tagged to this run's id, so runs
-        stay distinguishable from each other later."""
         conn = sqlite3.connect(str(DB_PATH))
         cursor = conn.execute(
             """
@@ -201,4 +192,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
