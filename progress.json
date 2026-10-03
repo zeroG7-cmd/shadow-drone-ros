@@ -1,0 +1,7 @@
+{
+  "arm": {"streak": 0, "unlocked": false},
+  "go_to": {"streak": 0, "unlocked": false},
+  "hover": {"streak": 0, "unlocked": false},
+  "land": {"streak": 0, "unlocked": false},
+  "takeoff": {"streak": 0, "unlocked": false}
+}

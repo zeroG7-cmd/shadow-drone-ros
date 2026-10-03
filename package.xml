@@ -7,10 +7,14 @@
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
   <depend>rclpy</depend>
-  <depend>gazebo_ros</depend>
-  <depend>gazebo_msgs</depend>
+  <depend>mavros_msgs</depend>
   <depend>xacro</depend>
+  <!-- gazebo_ros / gazebo_msgs depends removed - see CMakeLists.txt for
+       why: nothing in this package's Python code imports either one,
+       and installing them on this machine conflicts at the apt level
+       with the already-working Gazebo Harmonic setup. -->
 
   <export>
     <build_type>ament_cmake</build_type>
