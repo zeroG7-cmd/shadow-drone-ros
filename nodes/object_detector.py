@@ -25,6 +25,7 @@ with it, same relationship mission_planner.py already has with MAVROS.
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point
 from cv_bridge import CvBridge
@@ -37,8 +38,14 @@ class ObjectDetector(Node):
         super().__init__('object_detector')
         self.bridge = CvBridge()
 
+        # gazebo_ros_camera publishes images on SensorDataQoS (best-effort) -
+        # a plain integer depth here defaults to *reliable* QoS instead,
+        # which is incompatible with a best-effort publisher. ROS2 just
+        # never connects the two in that case (no crash, no obvious error),
+        # which is exactly why this sat silently receiving nothing.
         self.image_sub = self.create_subscription(
-            Image, '/shadow/front_camera/image_raw', self._image_cb, 10)
+            Image, '/shadow/front_camera/image_raw', self._image_cb,
+            qos_profile_sensor_data)
 
         self.detection_pub = self.create_publisher(
             Point, '/shadow/target_position', 10)
