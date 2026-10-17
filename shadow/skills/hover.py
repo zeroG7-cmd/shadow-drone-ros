@@ -1,17 +1,43 @@
 #!/usr/bin/env python3
 """
-HoverSkill - hold the current position for a fixed duration.
+HoverSkill - hold position for a fixed duration while already flying.
 
 Tier 1. The point of this one isn't the manoeuvre itself (it's trivial)
 but training stability: three good training runs of "stay roughly
 still for N seconds" is a real, checkable signal that position-hold
 setpoints are actually working, before anything more ambitious depends
 on that.
+
+Fixed Oct 3, 2026 (first pass): requirements() checked
+current_position() instantly, before this fresh process's
+subscriptions had a chance to receive anything - replaced with
+wait_for_position_estimate(), same pattern TakeoffSkill uses.
+
+Fixed Oct 3, 2026 (second pass - written into a stray hover-1.py by
+mistake and never actually merged into this file until Oct 17, 2026,
+after a git-status/diff check showed the real hover.py on disk still
+had the old, unpatched requirements()/limits()): the original version
+also recorded whatever position the drone happened to be at -
+including sitting on the ground, disarmed - as the "hold point," then
+declared success purely because a timer ran out, with no check that
+holding actually worked. That is exactly the "flies on timers, not
+measured arrival" bug the whole Skill redesign exists to fix,
+reintroduced here by mistake. Now requires actually being armed and in
+GUIDED mode before it will even start, and limits() fails the run
+immediately if Shadow drifts more than HOLD_TOLERANCE_M from the hold
+point at any point during the hold - not just a timer with nothing
+behind it.
+
+Because the real fix never reached this file until now, every prior
+hover PASS (the streak of 7 recorded in progress.json as of Oct 17)
+was earned under the broken logic, not this one - see progress.json
+and the roadmap doc for the reset this required.
 """
 
 from .base import Skill
 
 DEFAULT_DURATION_SEC = 5.0
+HOLD_TOLERANCE_M = 0.3
 
 
 class HoverSkill(Skill):
@@ -25,7 +51,36 @@ class HoverSkill(Skill):
         self._start_time = None
 
     def requirements(self):
-        return self.body.current_position() is not None
+        if not self.body.wait_for_position_estimate(timeout_sec=10.0):
+            return False
+        # Hovering only means something if Shadow is actually flying.
+        # Recording wherever it happens to be sitting - including on
+        # the ground, disarmed - and calling that a hover was the bug.
+        if not (self.body.is_armed() and self.body.current_mode() == 'GUIDED'):
+            self.body.get_logger().error(
+                'hover: not armed and in GUIDED - take off first.')
+            return False
+        return True
+
+    def limits(self):
+        # Base geofence/altitude check first.
+        if not super().limits():
+            return False
+        if self._hold_point is None:
+            return True  # start() hasn't run yet
+        pos = self.body.current_position()
+        if pos is None:
+            return True
+        x, y, z = self._hold_point
+        dx, dy, dz = pos[0] - x, pos[1] - y, pos[2] - z
+        distance = (dx * dx + dy * dy + dz * dz) ** 0.5
+        if distance > HOLD_TOLERANCE_M:
+            self.body.get_logger().error(
+                f'hover: drifted {distance:.2f}m from the hold point '
+                f'({HOLD_TOLERANCE_M}m tolerance) - failing, not waiting '
+                f'out the timer anyway.')
+            return False
+        return True
 
     def start(self):
         self._hold_point = self.body.current_position()

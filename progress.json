@@ -1,7 +1,22 @@
 {
-  "arm": {"streak": 0, "unlocked": false},
-  "go_to": {"streak": 0, "unlocked": false},
-  "hover": {"streak": 0, "unlocked": false},
-  "land": {"streak": 0, "unlocked": false},
-  "takeoff": {"streak": 0, "unlocked": false}
+  "arm": {
+    "streak": 3,
+    "unlocked": true
+  },
+  "go_to": {
+    "streak": 12,
+    "unlocked": true
+  },
+  "hover": {
+    "streak": 0,
+    "unlocked": false
+  },
+  "land": {
+    "streak": 4,
+    "unlocked": true
+  },
+  "takeoff": {
+    "streak": 11,
+    "unlocked": true
+  }
 }

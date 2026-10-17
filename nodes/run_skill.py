@@ -90,9 +90,17 @@ def main(args=None):
     parser.add_argument('skill', choices=sorted(SKILLS.keys()))
     parser.add_argument('--altitude', type=float, default=2.0)
     parser.add_argument('--duration', type=float, default=5.0)
-    parser.add_argument('--x', type=float, default=0.0)
-    parser.add_argument('--y', type=float, default=0.0)
-    parser.add_argument('--z', type=float, default=2.0)
+    # Default is None, not a fixed point: GoToSkill treats None as
+    # "move a fixed offset from wherever Shadow currently is," not an
+    # absolute world point. A fixed default breaks on repeat runs -
+    # the first go_to really does move the drone there, so every run
+    # after that is trivially "already at the target" and passes
+    # without moving at all. Caught live Oct 3, 2026 when repeat go_to
+    # runs looked like no-ops. Pass --x/--y/--z explicitly to fly to a
+    # literal absolute point instead.
+    parser.add_argument('--x', type=float, default=None)
+    parser.add_argument('--y', type=float, default=None)
+    parser.add_argument('--z', type=float, default=None)
     parser.add_argument(
         '--progress-file', default=None,
         help="Defaults to progress.json in the current directory - see "
@@ -100,6 +108,20 @@ def main(args=None):
     parsed = parser.parse_args(args)
 
     progress_path = parsed.progress_file or os.path.join(os.getcwd(), 'progress.json')
+
+    # Caught live Oct 3, 2026: running this from the wrong directory
+    # (e.g. the colcon workspace root instead of the shadow_drone repo
+    # root) silently creates a brand-new, untracked progress.json
+    # instead of using the real one - fragmenting progress with no
+    # indication anything went wrong. Warn loudly instead.
+    if not parsed.progress_file and not os.path.exists(progress_path):
+        print(
+            f'[run_skill] WARNING: no progress.json found at '
+            f'{progress_path} - creating a new, empty one here. If you '
+            f'meant to use the real, git-tracked progress.json, run '
+            f'this from the shadow_drone repo root instead (or pass '
+            f'--progress-file explicitly).',
+            file=sys.stderr)
 
     rclpy.init()
     body = ArduPilotBody()

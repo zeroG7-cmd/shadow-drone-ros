@@ -17,7 +17,13 @@ class LandSkill(Skill):
     timeout_sec = 30.0
 
     def requirements(self):
-        return self.body.is_armed()
+        # Same fresh-process issue as HoverSkill/GoToSkill: is_armed()
+        # read instantly would always see the node's unset default
+        # (False) rather than ArduPilot's real current state. Wait for
+        # a real connection first - wait_until_connected() loops until
+        # the same State message that carries is_armed()'s value has
+        # actually arrived at least once.
+        return self.body.wait_until_connected(timeout_sec=10.0) and self.body.is_armed()
 
     def start(self):
         self.body.set_mode('LAND')
