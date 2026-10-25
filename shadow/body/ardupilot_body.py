@@ -165,15 +165,36 @@ class ArduPilotBody(Node):
         same way for ArduCopter. Must be called repeatedly (ideally
         ~20Hz) while in GUIDED mode - a single setpoint with nothing
         following it is not a reliable way to get or keep ArduPilot's
-        attention."""
-        IGNORE_YAW = 0b100000000000        # bit 11
-        IGNORE_YAW_RATE = 0b1000000000000  # bit 12
+        attention.
 
+        Oct 25, 2026 fix - the real mavros_msgs/PositionTarget.msg bit
+        values are IGNORE_YAW=1024 (bit 10) and IGNORE_YAW_RATE=2048
+        (bit 11). This used to hand-roll those as two binary literals -
+        0b100000000000 (2048, bit 11) labelled "IGNORE_YAW", and
+        0b1000000000000 (4096, bit 12 - not a defined flag at all)
+        labelled "IGNORE_YAW_RATE". Net effect: the real IGNORE_YAW bit
+        (1024) was never actually present in the outgoing type_mask, so
+        every setpoint also carried an explicit yaw target - and since
+        `target.yaw` was never set either, that target was always 0.0
+        rad (true North), continuously fighting Shadow's actual
+        spawn/operating yaw (90 degrees - see deliver_payload.py's
+        module docstring, assumption 1, which assumes yaw never changes
+        and is exactly why it never should have). This is almost
+        certainly both the "doesn't really like pan" behaviour seen
+        during go_to RL training (go_to.py calls this same method every
+        tick) and a real contributor to deliver_payload's APPROACH
+        phase getting stuck on an identical, frozen offset_x/area
+        reading for 17+ seconds before aborting - if yaw keeps getting
+        yanked toward 0 while the approach math assumes a fixed 90
+        degree heading, the camera ends up looking somewhere that math
+        doesn't expect. Using the message's own real constants instead
+        of hand-rolled literals removes this whole bug class rather
+        than just patching two numbers."""
         target = PositionTarget()
         target.header.stamp = self.get_clock().now().to_msg()
         target.header.frame_id = 'map'
         target.coordinate_frame = PositionTarget.FRAME_LOCAL_NED
-        target.type_mask = IGNORE_YAW | IGNORE_YAW_RATE
+        target.type_mask = PositionTarget.IGNORE_YAW | PositionTarget.IGNORE_YAW_RATE
         target.position.x = float(x)
         target.position.y = float(y)
         target.position.z = float(z)

@@ -21,31 +21,74 @@ Publishes geometry_msgs/Point on /shadow/target_position:
 This is Stage 1 only - detection. Nothing here flies the drone. A
 mission script would subscribe to this topic and decide what to do
 with it, same relationship mission_planner.py already has with MAVROS.
+
+Oct 24, 2026 rewrite - same root cause as sim_camera_stream.py's fix
+the same day: this used to subscribe to a ROS2 topic,
+/shadow/front_camera/image_raw, that nothing in the stack has ever
+published to (Gazebo's camera sensor only publishes on its own
+gz-transport topic of the same name, sans leading slash - never
+bridged into ROS2 after the Oct 2-4 ArduPilot/Harmonic migration; see
+areas/fpv-camera-telemetry-harmonic-fix.md for the full root-cause
+writeup). The "SensorDataQoS" comment below about why this "sat
+silently receiving nothing" was a real, correct observation about
+*something* - it just wasn't the actual cause this time: the topic
+had zero publishers of ANY QoS, so nothing could have connected
+regardless.
+
+INPUT side only is rewritten: subscribes directly to Gazebo's own
+gz-transport topic via gz.transport13/gz.msgs10 (matching
+sim_camera_stream.py's approach), decoding the raw RGB_INT8 frame
+into a numpy array by hand - no cv_bridge needed for this direction
+either. OUTPUT side (the three ROS2 publishers below:
+/shadow/target_position, /shadow/detection_debug,
+/shadow/detection_mask) is UNCHANGED in spirit - still real rclpy
+publishers, since a future mission script genuinely needs to
+subscribe to /shadow/target_position over ROS2 - but now builds
+sensor_msgs/Image messages by hand too (see numpy_to_image_msg below)
+instead of via cv_bridge.cv2_to_imgmsg, so this script no longer
+depends on cv_bridge or its numpy-ABI fragility at all.
 """
+
+import os
+# Must be set before gz.msgs10 is ever imported - see the identical
+# comment in sim_camera_stream.py for why (old-style generated
+# protobuf code vs. a newer protobuf runtime on this machine).
+os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point
-from cv_bridge import CvBridge
+from std_msgs.msg import Header
 import cv2
 import numpy as np
+
+from gz.transport13 import Node as GzNode
+from gz.msgs10.image_pb2 import Image as GzImage
+
+GZ_TOPIC = "shadow/front_camera/image_raw"  # gz-transport, no leading slash
+GZ_FRAME_ID = "front_camera_link"  # matches model.sdf's <gz_frame_id>
+
+
+def numpy_to_image_msg(array, encoding, header):
+    """Hand-rolled equivalent of cv_bridge.cv2_to_imgmsg - avoids
+    cv_bridge's numpy-ABI fragility entirely for this (small, simple)
+    conversion. array is HxWx3 (encoding='bgr8') or HxW (encoding='mono8')."""
+    msg = Image()
+    msg.header = header
+    msg.height = array.shape[0]
+    msg.width = array.shape[1]
+    msg.encoding = encoding
+    msg.is_bigendian = 0
+    channels = array.shape[2] if array.ndim == 3 else 1
+    msg.step = array.shape[1] * channels
+    msg.data = array.tobytes()
+    return msg
 
 
 class ObjectDetector(Node):
     def __init__(self):
         super().__init__('object_detector')
-        self.bridge = CvBridge()
-
-        # gazebo_ros_camera publishes images on SensorDataQoS (best-effort) -
-        # a plain integer depth here defaults to *reliable* QoS instead,
-        # which is incompatible with a best-effort publisher. ROS2 just
-        # never connects the two in that case (no crash, no obvious error),
-        # which is exactly why this sat silently receiving nothing.
-        self.image_sub = self.create_subscription(
-            Image, '/shadow/front_camera/image_raw', self._image_cb,
-            qos_profile_sensor_data)
 
         self.detection_pub = self.create_publisher(
             Point, '/shadow/target_position', 10)
@@ -70,11 +113,21 @@ class ObjectDetector(Node):
         self._frame_count = 0
 
         self.get_logger().info('Object detector started, watching '
-                                '/shadow/front_camera/image_raw for '
+                                f'gz-transport topic "{GZ_TOPIC}" for '
                                 'the orange payload...')
 
-    def _image_cb(self, msg):
-        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+    def gz_image_cb(self, gz_msg: GzImage):
+        # Same decode as sim_camera_stream.py's image_callback - see
+        # that file's comments for why msg.step (not width*3) is the
+        # right row stride to use.
+        raw = np.frombuffer(gz_msg.data, dtype=np.uint8).reshape(gz_msg.height, gz_msg.step)
+        rgb = raw[:, : gz_msg.width * 3].reshape(gz_msg.height, gz_msg.width, 3)
+        frame = rgb[:, :, ::-1]  # Gazebo sends RGB; cv2 wants BGR
+
+        header = Header()
+        header.stamp = self.get_clock().now().to_msg()
+        header.frame_id = GZ_FRAME_ID
+
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, self.lower_orange, self.upper_orange)
 
@@ -119,20 +172,26 @@ class ObjectDetector(Node):
                           (0, 0, 255), -1)
 
         self.detection_pub.publish(point)
-
-        debug_msg = self.bridge.cv2_to_imgmsg(debug_frame, encoding='bgr8')
-        debug_msg.header = msg.header
-        self.debug_image_pub.publish(debug_msg)
-
-        mask_msg = self.bridge.cv2_to_imgmsg(mask, encoding='mono8')
-        mask_msg.header = msg.header
-        self.mask_debug_pub.publish(mask_msg)
+        self.debug_image_pub.publish(numpy_to_image_msg(debug_frame, 'bgr8', header))
+        self.mask_debug_pub.publish(numpy_to_image_msg(mask, 'mono8', header))
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = ObjectDetector()
+
+    gz_node = GzNode()
+    subscribed = gz_node.subscribe(GzImage, GZ_TOPIC, node.gz_image_cb)
+    if not subscribed:
+        node.get_logger().error(
+            f'Failed to subscribe to gz-transport topic "{GZ_TOPIC}" - '
+            f'node.subscribe() returned false.')
+
     try:
+        # gz-transport delivers frames on its own background thread
+        # (see gz_image_cb above); rclpy.spin() here just keeps the
+        # ROS2 side (the three publishers, logging, process lifetime)
+        # alive - no ROS2 subscription callbacks to dispatch anymore.
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass

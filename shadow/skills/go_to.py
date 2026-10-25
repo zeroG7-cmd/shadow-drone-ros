@@ -78,7 +78,10 @@ class GoToSkill(Skill):
         # first, then trust the values.
         if not self.body.wait_until_connected(timeout_sec=10.0):
             return False
-        if not self.body.wait_for_position_estimate(timeout_sec=10.0):
+        # Widened 10.0 -> 25.0 Oct 24, 2026 - see takeoff.py's matching
+        # comment for why: a live run on shadow_runway saw this still
+        # timing out well after the FCU's own log reported GPS in use.
+        if not self.body.wait_for_position_estimate(timeout_sec=25.0):
             return False
         return self.body.is_armed() and self.body.current_mode() == 'GUIDED'
 

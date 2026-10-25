@@ -1,0 +1,40 @@
+# Shadow SITL boot params - applied automatically via sim_vehicle.py's
+# --add-param-file, so ArduCopter arms cleanly on every fresh SITL boot
+# without needing a human at the MAVProxy console.
+#
+# FRAME_CLASS/FRAME_TYPE were previously set by hand, once per session,
+# typed directly into the MAVProxy console after hitting
+# "PreArm: Motors: Check frame class and type" during Gate 1/2 tuning
+# (see areas/shadow-ardupilot-migration-roadmap.md, "PreArm: Motors --
+# Check frame class and type - RESOLVED"). Baking the fix in here is
+# what actually makes an unattended/scripted boot (Zero Command's
+# "Start Simulation" button) arm correctly with no one typing at a
+# console - the manual fix only ever lived in that one MAVProxy
+# session's live parameter state, never persisted anywhere until now.
+FRAME_CLASS 1
+FRAME_TYPE  1
+
+# Oct 24, 2026 - the actual root cause of the entire "local_position
+# never delivers data" saga (search-and-deliver mission debugging log,
+# areas/search-and-deliver-mission.md, Run 5/6). Confirmed live:
+# MAV1_POSITION and MAV1_EXTRA1 were both 0 on every single boot -
+# ArduCopter was never sending LOCAL_POSITION_NED or ATTITUDE/IMU data
+# to MAVROS's link at all, no matter how long anything waited. This is
+# the modern (V4.8.0-dev) replacement for the old SRx_* stream-rate
+# scheme - one bank per connected GCS link (MAV1/MAV2/MAV3) rather than
+# per serial port. It was never set anywhere because --no-mavproxy
+# (run_full_sim.sh) means nothing is at a console to request these
+# streams the way MAVProxy normally does automatically on connect, and
+# MAVROS itself never proactively requests them either - it only
+# listens for whatever arrives. /mavros/state (heartbeat-driven) always
+# worked fine throughout this whole debugging arc for exactly that
+# reason: HEARTBEAT is unconditional, these are not. Confirmed live via
+# `ros2 service call /mavros/param/set mavros_msgs/srv/ParamSetV2` that
+# setting these to 10 makes the FCU accept and keep the value - baking
+# them in here so every fresh boot has them from the start, the same
+# reason FRAME_CLASS/FRAME_TYPE are baked in above.
+MAV1_POSITION 10
+MAV1_EXTRA1   10
+MAV1_EXTRA2   4
+MAV1_EXT_STAT 2
+MAV1_RAW_SENS 2

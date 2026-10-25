@@ -25,7 +25,17 @@ class TakeoffSkill(Skill):
         self._commanded = False
 
     def requirements(self):
-        if not self.body.wait_for_position_estimate(timeout_sec=10.0):
+        # Widened 10.0 -> 25.0 Oct 24, 2026, after a live run on
+        # shadow_runway: the FCU's own log reported "EKF3 IMU0/IMU1 is
+        # using GPS" a good 25-40s before this skill's own attempt even
+        # started, yet a fresh process still timed out waiting for
+        # /mavros/local_position/pose within the old 10s window. That
+        # gap matters for diagnosis: if 25s still isn't enough, the
+        # real problem isn't "didn't wait long enough" - something
+        # (QoS, topic name, MAVROS config) may be stopping that topic
+        # from ever reaching a fresh subscriber, not just stopping it
+        # from reaching one quickly. Not yet root-caused either way.
+        if not self.body.wait_for_position_estimate(timeout_sec=25.0):
             self.body.get_logger().error(
                 'takeoff: no position estimate yet - arming now would '
                 'repeat the exact bug mission_planner.py already hit '

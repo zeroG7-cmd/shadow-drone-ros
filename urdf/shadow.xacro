@@ -1,0 +1,653 @@
+<?xml version="1.0" ?>
+<robot name="shadow" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find shadow_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find shadow_description)/urdf/shadow.trans" />
+<link name="base_link">
+  <inertial>
+    <origin xyz="-0.1298261222894084 0.0003757211864628796 0.22134483091466056" rpy="0 0 0"/>
+    <mass value="0.48586788114441465"/>
+    <inertia ixx="0.001113" iyy="0.001788" izz="0.002706" ixy="0.0" iyz="-0.0" ixz="1e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="steel_satin"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Racerstar-BR2205-2300KV_1">
+  <inertial>
+    <origin xyz="-0.0004066536681725588 0.0011181837479216639 0.008478489771126557" rpy="0 0 0"/>
+    <mass value="0.0662932224843595"/>
+    <inertia ixx="7e-06" iyy="5e-06" izz="8e-06" ixy="1e-06" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.051458 0.098395 -0.216201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Racerstar-BR2205-2300KV_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque2556363"/>
+  </visual>
+  <collision>
+    <origin xyz="0.051458 0.098395 -0.216201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Racerstar-BR2205-2300KV_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Racerstar-BR2205-2300KV_2">
+  <inertial>
+    <origin xyz="-0.0004066872457912374 -0.0011177291537372153 0.008478489771127445" rpy="0 0 0"/>
+    <mass value="0.0662932224843595"/>
+    <inertia ixx="7e-06" iyy="5e-06" izz="8e-06" ixy="-1e-06" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.051458 -0.099146 -0.216201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Racerstar-BR2205-2300KV_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque2556363"/>
+  </visual>
+  <collision>
+    <origin xyz="0.051458 -0.099146 -0.216201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Racerstar-BR2205-2300KV_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Racerstar-BR2205-2300KV_3">
+  <inertial>
+    <origin xyz="0.00040720717686829055 -0.0011177413749912102 0.008678489771128561" rpy="0 0 0"/>
+    <mass value="0.0662932224843595"/>
+    <inertia ixx="7e-06" iyy="5e-06" izz="8e-06" ixy="1e-06" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.208084 -0.099146 -0.216201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Racerstar-BR2205-2300KV_3.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque2556363"/>
+  </visual>
+  <collision>
+    <origin xyz="0.208084 -0.099146 -0.216201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Racerstar-BR2205-2300KV_3.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Racerstar-BR2205-2300KV_4">
+  <inertial>
+    <origin xyz="0.00040724075448703156 0.0011181715266675163 0.008678489771128145" rpy="0 0 0"/>
+    <mass value="0.0662932224843595"/>
+    <inertia ixx="7e-06" iyy="5e-06" izz="8e-06" ixy="-1e-06" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.208084 0.098395 -0.216201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Racerstar-BR2205-2300KV_4.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque2556363"/>
+  </visual>
+  <collision>
+    <origin xyz="0.208084 0.098395 -0.216201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Racerstar-BR2205-2300KV_4.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="M5_Lock_nut_1">
+  <inertial>
+    <origin xyz="2.086802418449496e-06 -7.452718477074516e-08 0.003543416666972249" rpy="0 0 0"/>
+    <mass value="0.0012613025516605046"/>
+    <inertia ixx="0.0" iyy="0.0" izz="0.0" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.208084 -0.099146 -0.238751" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/M5_Lock_nut_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="steel_satin"/>
+  </visual>
+  <collision>
+    <origin xyz="0.208084 -0.099146 -0.238751" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/M5_Lock_nut_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="19x19_feet_4">
+  <inertial>
+    <origin xyz="3.648418976376355e-07 -1.7813552892487206e-07 -0.009731460143091786" rpy="0 0 0"/>
+    <mass value="0.052630217333330946"/>
+    <inertia ixx="4e-06" iyy="4e-06" izz="3e-06" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.208084 -0.099146 -0.213201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/19x19_feet_4.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque131313"/>
+  </visual>
+  <collision>
+    <origin xyz="0.208084 -0.099146 -0.213201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/19x19_feet_4.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="19x19_feet_3">
+  <inertial>
+    <origin xyz="2.515547370615656e-07 -1.4881040244496546e-07 -0.009731460143092896" rpy="0 0 0"/>
+    <mass value="0.052630217333330946"/>
+    <inertia ixx="4e-06" iyy="4e-06" izz="3e-06" ixy="-0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.051458 -0.099146 -0.213201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/19x19_feet_3.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque131313"/>
+  </visual>
+  <collision>
+    <origin xyz="0.051458 -0.099146 -0.213201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/19x19_feet_3.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="19x19_feet_2">
+  <inertial>
+    <origin xyz="1.0811368626045814e-07 2.8357301005976776e-07 -0.009731460143093312" rpy="0 0 0"/>
+    <mass value="0.052630217333330946"/>
+    <inertia ixx="4e-06" iyy="4e-06" izz="3e-06" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.051458 0.098395 -0.213201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/19x19_feet_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque131313"/>
+  </visual>
+  <collision>
+    <origin xyz="0.051458 0.098395 -0.213201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/19x19_feet_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="19x19_feet_1">
+  <inertial>
+    <origin xyz="3.01953958586898e-07 5.911833325517035e-07 -0.009731460143092036" rpy="0 0 0"/>
+    <mass value="0.052630217333330946"/>
+    <inertia ixx="4e-06" iyy="4e-06" izz="3e-06" ixy="-0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.208084 0.098395 -0.213201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/19x19_feet_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque131313"/>
+  </visual>
+  <collision>
+    <origin xyz="0.208084 0.098395 -0.213201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/19x19_feet_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Navio2_Platform_v2__1__1">
+  <inertial>
+    <origin xyz="0.029188800696697853 -0.017000278813536024 0.0025195385266305603" rpy="0 0 0"/>
+    <mass value="0.18798216322347347"/>
+    <inertia ixx="9.3e-05" iyy="0.000153" izz="0.000245" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.159271 -0.017376 -0.254201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Navio2_Platform_v2__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="steel_satin"/>
+  </visual>
+  <collision>
+    <origin xyz="0.159271 -0.017376 -0.254201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Navio2_Platform_v2__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Spacer_1">
+  <inertial>
+    <origin xyz="2.7675434871587967e-07 -2.7881353616837634e-07 0.017500471295414877" rpy="0 0 0"/>
+    <mass value="0.0034492231879313952"/>
+    <inertia ixx="0.0" iyy="0.0" izz="0.0" ixy="-0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.170771 0.035624 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Spacer_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque202209238"/>
+  </visual>
+  <collision>
+    <origin xyz="0.170771 0.035624 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Spacer_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Spacer_4">
+  <inertial>
+    <origin xyz="2.7675434907670216e-07 -2.788135353010146e-07 0.0175004712954146" rpy="0 0 0"/>
+    <mass value="0.0034492231879313952"/>
+    <inertia ixx="0.0" iyy="0.0" izz="0.0" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.170771 -0.036376 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Spacer_4.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque202209238"/>
+  </visual>
+  <collision>
+    <origin xyz="0.170771 -0.036376 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Spacer_4.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Spacer_2">
+  <inertial>
+    <origin xyz="2.7675434828566825e-07 -2.788135358838817e-07 0.017300471295414455" rpy="0 0 0"/>
+    <mass value="0.0034492231879313952"/>
+    <inertia ixx="0.0" iyy="0.0" izz="0.0" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.088771 0.035624 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Spacer_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque202209238"/>
+  </visual>
+  <collision>
+    <origin xyz="0.088771 0.035624 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Spacer_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Spacer_3">
+  <inertial>
+    <origin xyz="2.767543484383239e-07 -2.7881353602959846e-07 0.01730047129541412" rpy="0 0 0"/>
+    <mass value="0.0034492231879313952"/>
+    <inertia ixx="0.0" iyy="0.0" izz="0.0" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.088771 -0.036376 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Spacer_3.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque202209238"/>
+  </visual>
+  <collision>
+    <origin xyz="0.088771 -0.036376 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Spacer_3.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="LiDAR_Deck__1__1">
+  <inertial>
+    <origin xyz="-0.04082656917032425 0.03599972118646806 0.0020004712954152515" rpy="0 0 0"/>
+    <mass value="0.1415242145104408"/>
+    <inertia ixx="8.9e-05" iyy="9.8e-05" izz="0.000186" ixy="-0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.088771 0.037324 -0.294001" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/LiDAR_Deck__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="steel_satin"/>
+  </visual>
+  <collision>
+    <origin xyz="0.088771 0.037324 -0.294001" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/LiDAR_Deck__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Companion_Computer_Flight_Controller_Stack_1">
+  <inertial>
+    <origin xyz="0.051017000686568656 -0.006342732882139723 0.010231134109549178" rpy="0 0 0"/>
+    <mass value="0.35885055802379046"/>
+    <inertia ixx="0.000167" iyy="0.000308" izz="0.000425" ixy="2e-06" iyz="-1e-06" ixz="-9e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.174771 -0.006876 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Companion_Computer_Flight_Controller_Stack_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="steel_satin"/>
+  </visual>
+  <collision>
+    <origin xyz="0.174771 -0.006876 -0.259201" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Companion_Computer_Flight_Controller_Stack_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Gimbal_Upright_Fit_Check_Assembly_1">
+  <inertial>
+    <origin xyz="0.023453524111220616 0.02266690507892453 0.014586073795853749" rpy="0 0 0"/>
+    <mass value="0.4525612930891834"/>
+    <inertia ixx="0.000335" iyy="0.000436" izz="0.000397" ixy="-5.1e-05" iyz="-5.1e-05" ixz="-9.8e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.048771 0.015624 -0.211701" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Gimbal_Upright_Fit_Check_Assembly_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="steel_satin"/>
+  </visual>
+  <collision>
+    <origin xyz="0.048771 0.015624 -0.211701" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/Gimbal_Upright_Fit_Check_Assembly_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="5045_CCW_1">
+  <inertial>
+    <origin xyz="-1.3866559981506876e-06 5.004791751569981e-06 0.003534020731944948" rpy="0 0 0"/>
+    <mass value="0.021288948086008095"/>
+    <inertia ixx="1e-05" iyy="1e-05" izz="2e-05" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.051458 0.098395 -0.234051" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/5045_CCW_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque646464"/>
+  </visual>
+  <collision>
+    <origin xyz="0.051458 0.098395 -0.234051" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/5045_CCW_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="5045_CW_1">
+  <inertial>
+    <origin xyz="-6.975505290676698e-07 8.700736034428225e-09 0.003534181981734441" rpy="0 0 0"/>
+    <mass value="0.021282504218828744"/>
+    <inertia ixx="1e-05" iyy="1e-05" izz="2e-05" ixy="-0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.051458 -0.099146 -0.234051" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/5045_CW_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque646464"/>
+  </visual>
+  <collision>
+    <origin xyz="0.051458 -0.099146 -0.234051" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/5045_CW_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="5045_CW_2">
+  <inertial>
+    <origin xyz="-4.408223215901508e-07 4.704092753937683e-07 0.003534181981735246" rpy="0 0 0"/>
+    <mass value="0.021282504218828744"/>
+    <inertia ixx="1e-05" iyy="1e-05" izz="2e-05" ixy="-0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.208084 0.098395 -0.234251" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/5045_CW_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque646464"/>
+  </visual>
+  <collision>
+    <origin xyz="0.208084 0.098395 -0.234251" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/5045_CW_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="5045_CCW_2">
+  <inertial>
+    <origin xyz="-1.129927787446583e-06 4.543083212724119e-06 0.0035340207319472794" rpy="0 0 0"/>
+    <mass value="0.021288948086008095"/>
+    <inertia ixx="1e-05" iyy="1e-05" izz="2e-05" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.208084 -0.099146 -0.234251" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/5045_CCW_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque646464"/>
+  </visual>
+  <collision>
+    <origin xyz="0.208084 -0.099146 -0.234251" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/5045_CCW_2.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="LIDAR_2_1">
+  <inertial>
+    <origin xyz="-0.020847179619063308 0.020859371231468304 0.012114970481825804" rpy="0 0 0"/>
+    <mass value="0.8457268503421936"/>
+    <inertia ixx="0.000335" iyy="0.000335" izz="0.000586" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.108916 0.022184 -0.298001" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/LIDAR_2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque160160160"/>
+  </visual>
+  <collision>
+    <origin xyz="0.108916 0.022184 -0.298001" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/LIDAR_2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="LIDAR_1_1">
+  <inertial>
+    <origin xyz="-0.0028777416941064837 -6.740541193463439e-05 0.007758749238048479" rpy="0 0 0"/>
+    <mass value="0.4343403241920499"/>
+    <inertia ixx="0.000142" iyy="0.000139" izz="0.000259" ixy="0.0" iyz="-0.0" ixz="-2e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.129775 0.001325 -0.322901" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/LIDAR_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="opaque160160160"/>
+  </visual>
+  <collision>
+    <origin xyz="0.129775 0.001325 -0.322901" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://shadow_description/meshes/LIDAR_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<joint name="Rigid 1" type="fixed">
+  <origin xyz="-0.051458 -0.098395 0.216201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="Racerstar-BR2205-2300KV_1"/>
+</joint>
+
+<joint name="Rigid 2" type="fixed">
+  <origin xyz="-0.051458 0.099146 0.216201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="Racerstar-BR2205-2300KV_2"/>
+</joint>
+
+<joint name="Rigid 3" type="fixed">
+  <origin xyz="-0.208084 0.099146 0.216201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="Racerstar-BR2205-2300KV_3"/>
+</joint>
+
+<joint name="Rigid 4" type="fixed">
+  <origin xyz="-0.208084 -0.098395 0.216201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="Racerstar-BR2205-2300KV_4"/>
+</joint>
+
+<joint name="Rigid 11" type="fixed">
+  <origin xyz="0.0 0.0 0.02255" rpy="0 0 0"/>
+  <parent link="Racerstar-BR2205-2300KV_3"/>
+  <child link="M5_Lock_nut_1"/>
+</joint>
+
+<joint name="Rigid 15" type="fixed">
+  <origin xyz="-0.208084 0.099146 0.213201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="19x19_feet_4"/>
+</joint>
+
+<joint name="Rigid 16" type="fixed">
+  <origin xyz="-0.051458 0.099146 0.213201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="19x19_feet_3"/>
+</joint>
+
+<joint name="Rigid 17" type="fixed">
+  <origin xyz="-0.051458 -0.098395 0.213201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="19x19_feet_2"/>
+</joint>
+
+<joint name="Rigid 18" type="fixed">
+  <origin xyz="-0.208084 -0.098395 0.213201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="19x19_feet_1"/>
+</joint>
+
+<joint name="Rigid 21" type="fixed">
+  <origin xyz="-0.159271 0.017376 0.254201" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="Navio2_Platform_v2__1__1"/>
+</joint>
+
+<joint name="Rigid 22" type="fixed">
+  <origin xyz="-0.0115 -0.053 0.005" rpy="0 0 0"/>
+  <parent link="Navio2_Platform_v2__1__1"/>
+  <child link="Spacer_1"/>
+</joint>
+
+<joint name="Rigid 23" type="fixed">
+  <origin xyz="-0.0115 0.019 0.005" rpy="0 0 0"/>
+  <parent link="Navio2_Platform_v2__1__1"/>
+  <child link="Spacer_4"/>
+</joint>
+
+<joint name="Rigid 24" type="fixed">
+  <origin xyz="0.0705 -0.053 0.005" rpy="0 0 0"/>
+  <parent link="Navio2_Platform_v2__1__1"/>
+  <child link="Spacer_2"/>
+</joint>
+
+<joint name="Rigid 25" type="fixed">
+  <origin xyz="0.0705 0.019 0.005" rpy="0 0 0"/>
+  <parent link="Navio2_Platform_v2__1__1"/>
+  <child link="Spacer_3"/>
+</joint>
+
+<joint name="Rigid 26" type="fixed">
+  <origin xyz="0.0 -0.0017 0.0348" rpy="0 0 0"/>
+  <parent link="Spacer_2"/>
+  <child link="LiDAR_Deck__1__1"/>
+</joint>
+
+<joint name="Rigid 30" type="fixed">
+  <origin xyz="-0.0155 -0.0105 0.005" rpy="0 0 0"/>
+  <parent link="Navio2_Platform_v2__1__1"/>
+  <child link="Companion_Computer_Flight_Controller_Stack_1"/>
+</joint>
+
+<joint name="Rigid 34" type="fixed">
+  <origin xyz="-0.048771 -0.015624 0.211701" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="Gimbal_Upright_Fit_Check_Assembly_1"/>
+</joint>
+
+<joint name="Revolute 42" type="continuous">
+  <origin xyz="0.0 0.0 0.01785" rpy="0 0 0"/>
+  <parent link="Racerstar-BR2205-2300KV_1"/>
+  <child link="5045_CCW_1"/>
+  <axis xyz="-0.0 -0.0 -1.0"/>
+</joint>
+
+<joint name="Revolute 43" type="continuous">
+  <origin xyz="0.0 0.0 0.01785" rpy="0 0 0"/>
+  <parent link="Racerstar-BR2205-2300KV_2"/>
+  <child link="5045_CW_1"/>
+  <axis xyz="-0.0 -0.0 -1.0"/>
+</joint>
+
+<joint name="Revolute 44" type="continuous">
+  <origin xyz="0.0 0.0 0.01805" rpy="0 0 0"/>
+  <parent link="Racerstar-BR2205-2300KV_4"/>
+  <child link="5045_CW_2"/>
+  <axis xyz="-0.0 -0.0 -1.0"/>
+</joint>
+
+<joint name="Revolute 45" type="continuous">
+  <origin xyz="0.0 0.0 0.01805" rpy="0 0 0"/>
+  <parent link="Racerstar-BR2205-2300KV_3"/>
+  <child link="5045_CCW_2"/>
+  <axis xyz="-0.0 -0.0 -1.0"/>
+</joint>
+
+<joint name="Rigid 46" type="fixed">
+  <origin xyz="-0.020145 0.01514 0.004" rpy="0 0 0"/>
+  <parent link="LiDAR_Deck__1__1"/>
+  <child link="LIDAR_2_1"/>
+</joint>
+
+<joint name="Revolute 47" type="continuous">
+  <origin xyz="-0.020859 0.020859 0.0249" rpy="0 0 0"/>
+  <parent link="LIDAR_2_1"/>
+  <child link="LIDAR_1_1"/>
+  <axis xyz="0.0 0.0 1.0"/>
+</joint>
+
+</robot>

@@ -3,8 +3,12 @@
     "streak": 3,
     "unlocked": true
   },
+  "deliver_payload": {
+    "streak": 0,
+    "unlocked": false
+  },
   "go_to": {
-    "streak": 12,
+    "streak": 18,
     "unlocked": true
   },
   "hover": {
@@ -12,11 +16,15 @@
     "unlocked": false
   },
   "land": {
-    "streak": 4,
+    "streak": 10,
     "unlocked": true
   },
+  "learned_flight": {
+    "streak": 0,
+    "unlocked": false
+  },
   "takeoff": {
-    "streak": 11,
+    "streak": 3,
     "unlocked": true
   }
 }
