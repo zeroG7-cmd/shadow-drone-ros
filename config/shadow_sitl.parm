@@ -38,3 +38,300 @@ MAV1_EXTRA1   10
 MAV1_EXTRA2   4
 MAV1_EXT_STAT 2
 MAV1_RAW_SENS 2
+
+# Nov 7, 2026 - same bug class as MAV1_POSITION/MAV1_EXTRA1/MAV1_RC_CHAN
+# above, found while trying to verify whether tonight's parameter changes
+# (RC3_MIN/MAX/TRIM/REVERSED, MOT_HOVER_LEARN, RC_OVERRIDE_TIME) were ever
+# actually landing on the FC - `ros2 service call /mavros/param/get ...`
+# just hangs forever on "waiting for service to become available," live,
+# not the old 5s-timeout flakiness this script's own param_get_client has
+# logged all session. MAVROS's param plugin needs ArduCopter to actually
+# send PARAM_VALUE messages to do anything, and MAV1_PARAMS - the stream-
+# rate bank for exactly that message - was never set anywhere in this
+# file, same unset-and-defaulting-to-off shape as every other missing
+# MAV1_* gap tonight. Not independently confirmed from a primary source
+# (same ardupilot.org/GitHub provenance block hit everywhere else in this
+# file) - inferred from the naming pattern this file already establishes
+# and from the fact that the already-known "flaky /mavros/param/get"
+# complaint has been on record in this project for a while with no root
+# cause ever pinned on it. Cheap to test: no colcon build needed, just a
+# fresh "Start Simulation," and the test is unambiguous either way - if
+# `ros2 service call /mavros/param/get ...` returns an actual value after
+# this, the gate was here; if it still hangs, this guess was wrong too and
+# the param service is broken for some other reason entirely.
+MAV1_PARAMS   10
+
+# Nov 6, 2026 - same bug class as MAV1_POSITION/MAV1_EXTRA1 above, found
+# while trying to get real per-rotor PWM telemetry out of autotune_hover.py
+# (see areas/pid-autotune-dashboard.md, Session 6). `ros2 topic info
+# /mavros/rc/out --verbose` showed an advertised publisher but `ros2 topic
+# hz /mavros/rc/out` produced NOTHING for 10+ seconds - MAVROS has the
+# publisher object but ArduPilot was never actually sending the underlying
+# SERVO_OUTPUT_RAW MAVLink message it depends on. MAV1_RC_CHAN (the
+# RC/servo-channel stream bank) was simply never set anywhere in this file,
+# same root shape as the already-fixed MAV1_POSITION/MAV1_EXTRA1 gap.
+#
+# NOT independently confirmed from a primary source - ardupilot.org and
+# every GitHub source fetch for GCS_Mavlink.cpp/GCS_Common.cpp were both
+# blocked for this session (same blocked-provenance issue already hit
+# elsewhere in this project). This is inferred from the naming pattern the
+# rest of this file already establishes (MAV1_POSITION->position messages,
+# MAV1_EXTRA1->attitude, etc.) plus general ArduPilot stream-group
+# knowledge, not verified against source. Cheap to test either way: this
+# is a plain SITL param, no colcon build needed, just a fresh "Start
+# Simulation" - if `ros2 topic hz /mavros/rc/out` still shows nothing after
+# this, the real gating parameter is something else and this guess was
+# wrong.
+MAV1_RC_CHAN  10
+
+# Oct 26, 2026 (even later) - confirmed live via a grep of this file
+# that BATT_MONITOR was never set, which is the actual root cause of
+# the Training Log's battery chart always reading "not enough telemetry
+# to chart": with BATT_MONITOR disabled (the ArduCopter default),
+# ArduCopter never sends BATTERY_STATUS over MAVLink at all, so
+# telemetry_bridge.py's _battery_cb() callback simply never fires - not
+# a bug in that callback, there was just never anything to receive.
+# BATT_MONITOR 4 (Analog Voltage and Current) is SITL's own standard
+# simulated-battery monitor - it doesn't need real ADC hardware, SITL's
+# internal battery model drives it directly. BATT_CAPACITY matches the
+# real FCONEGY 1500mAh 3S pack from the component library (see the
+# Digital Twin's own battery spec card), so the percentage-remaining
+# SITL reports tracks a capacity that's actually real, not a made-up
+# default. Same "baked into the boot param file so Start Simulation
+# needs no manual console step" reasoning as FRAME_CLASS/MAV1_* above -
+# takes effect on the next fresh "Start Simulation", no colcon build
+# needed, this file is read straight from source by run_full_sim.sh.
+BATT_MONITOR  4
+BATT_CAPACITY 1500
+
+# Nov 6, 2026 (later, same night) - the MAV1_RC_CHAN fix above finally
+# produced real per-rotor PWM telemetry out of autotune_hover.py's
+# hover-throttle search, and it shows something new and much more
+# concrete than the attitude-mixer-saturation guess it replaces (see
+# areas/pid-autotune-dashboard.md, Session 6): raising the RC3 override
+# from 1650 to 1800 PWM made the REAL motor output on all four rotors go
+# DOWN, not up - 1151 -> 1102 -> 1100 (the servo floor), identically
+# across all four motors (no asymmetry, no tilt - roll/pitch stayed flat
+# throughout, which rules the mixer-saturation idea out directly). That
+# is backward, and it's exactly what a reversed or swapped RC3 channel
+# calibration would produce: ArduPilot normalizes the raw RC3 PWM through
+# its own RC3_MIN/RC3_MAX/RC3_TRIM/RC3_REVERSED before that value ever
+# reaches the motor mixer - if that calibration is flipped, a higher raw
+# override maps to a LOWER internal throttle command, on every motor
+# identically, which is exactly this data.
+#
+# NOT independently confirmed by reading the live parameter first -
+# /mavros/param/get has been flaky all session (same issue documented
+# since the Sep 21 PX4-era "New features wanted next" section) and I did
+# not want to block this fix on it. These are the known-correct values
+# (RC3_MIN/RC3_MAX matching the 1100/1900 servo range already confirmed
+# in ardu_ws/src/ardupilot_gazebo/models/shadow_with_ardupilot/model.sdf,
+# RC3_TRIM at the PWM midpoint, RC3_REVERSED explicitly off) - safe to set
+# explicitly either way, since this can't break a channel that was
+# already correct, only fix one that wasn't. Same "bake the real fix into
+# the boot file, no manual console step needed" reasoning as FRAME_CLASS/
+# MAV1_* above - takes effect on the next fresh "Start Simulation", no
+# colcon build needed.
+RC3_MIN      1100
+RC3_MAX      1900
+RC3_TRIM     1500
+RC3_REVERSED 0
+
+# Nov 6, 2026 (later still, same night) - new hypothesis for the throttle-decay
+# anomaly, now that a diagnostic hold (streaming ONE fixed PWM for 2s before
+# the adaptive search starts - see autotune_hover.py's
+# _find_hover_throttle_in_stabilize() docstring) has proven two things: (1)
+# the decay is time-dependent, not command-dependent - real rotor PWM still
+# fell from ~1150 to 1100 while the commanded PWM never changed at all - and
+# (2) at 20Hz logging resolution the fall is a smooth, gradual RAMP (flat
+# until ~t=0.6s, then sliding down tick by tick to the floor by ~t=1.0s), not
+# a sudden cliff. A sudden cliff would point at a message/mode timeout
+# snapping to some fallback value; a smooth ramp instead fits a mechanism that
+# keeps CONTINUOUSLY adjusting its own output while the vehicle sinks.
+# MOT_HOVER_LEARN is exactly that kind of mechanism: left at its default, it
+# continuously updates ArduCopter's learned hover-throttle estimate during
+# flight. If Shadow has never had a stable hover to learn a correct estimate
+# from, and is actively sinking because of this very bug, that creates a
+# self-reinforcing loop - learned estimate falls -> commanded output derived
+# from it falls further -> sink rate increases -> estimate falls further -
+# which would produce precisely the gradual ramp just measured, with no need
+# for any external command change.
+#
+# NOT independently confirmed from a primary source - same ardupilot.org/
+# GitHub provenance block hit everywhere else in this file. This is a
+# hypothesis test, not a confirmed fix: disabling hover-learning is also
+# standard safe practice during tuning work regardless of whether this
+# specific theory turns out to be right, so there is no downside to setting
+# it now. If the next run's diagnostic-hold ramp looks identical with this
+# set to 0, the self-reinforcing-hover-learning theory is wrong and something
+# else is still falling on its own.
+MOT_HOVER_LEARN 0
+
+# Nov 7, 2026 - the first lead tonight backed by an actual ArduPilot doc
+# fetch rather than pattern-matching or a blind guess. "Searching for the
+# real hover throttle" run's diagnostic hold has now been checked against
+# /mavros/rc/in (RC_CHANNELS - what ArduPilot itself reports as RC input):
+# it read a flat 1000 the ENTIRE hold, never once showing the 1650 this
+# script was continuously streaming as an override. ardupilot.org/dev/
+# docs/mavlink-rcinput.html (fetched directly, not from memory) confirms:
+# "If MAVLink based RC input is sent from the GCS this will generally
+# override the regular RC input," but also "If the MAVLink RC input
+# stops, ArduPilot falls back to regular RC input within a few seconds...
+# configurable using the RC_OVERRIDE_TIME parameter." That page did NOT
+# state ArduCopter's default RC_OVERRIDE_TIME value, and did NOT confirm
+# whether RC_CHANNELS reports the override value or the raw/underlying
+# value regardless - so the rc_in_thr=1000 reading doesn't, by itself,
+# prove the override truly never arrived; it may just be the wrong
+# telemetry to answer that (RC_CHANNELS could legitimately report the
+# "raw" value underneath an active override, not the override itself -
+# unconfirmed either way). What DOES fit disturbingly well: every single
+# diagnostic-hold run tonight, regardless of what else changed, shows the
+# same real-motor-output decay shape - flat for roughly the first 0.6-0.7s,
+# then a smooth ramp down to the hard floor by roughly t=1.0-1.1s. That is
+# exactly the shape an RC_OVERRIDE_TIME expiry would produce if this
+# script's override stream isn't actually being received continuously
+# by ArduPilot (even on the RELIABLE QoS fixed earlier - reliable delivery
+# isn't the same guarantee as "delivered often enough, with no gaps, to
+# never hit a short timeout"). Setting this generously high (10s, comfortably
+# longer than the whole diagnostic hold) is a cheap, reversible, easy to
+# interpret test: if the decay disappears or is pushed out well past 1
+# second, the override genuinely was expiring and this is the real root
+# cause. If the exact same ~0.6-1.1s ramp happens anyway, this parameter
+# was not the gating one and the override-timeout theory is wrong too.
+RC_OVERRIDE_TIME 10
+
+# Nov 7, 2026 (after EXTENDED_SYS_STATE finally came online via explicit
+# MAV_CMD_SET_MESSAGE_INTERVAL - see autotune_hover.py's
+# _request_message_interval()) - landed_state read IN_AIR for the ENTIRE
+# diagnostic hold on the next real run, abort line included. That's a
+# clean, conclusive result, not another dead instrument: the land-
+# detector hypothesis is DISPROVEN with real telemetry, same as mixer-
+# saturation, RC3 calibration, MOT_HOVER_LEARN, and RC_OVERRIDE_TIME
+# before it.
+#
+# Next angle, and a genuinely different ArduCopter subsystem from land
+# detection: AP_Motors' own spool state machine (GROUND_IDLE ->
+# SPOOLING_UP -> THROTTLE_UNLIMITED -> SPOOLING_DOWN), which runs
+# independently of whether the FC believes it has landed. If switching
+# from GUIDED into STABILIZE is forcing a spool-state reset regardless
+# of landed_state, that would still explain a uniform, all-four-motors,
+# command-independent collapse toward the output floor with no tilt -
+# the land-detector hypothesis and this one share almost the same
+# predicted symptom, which is exactly why ruling out one doesn't rule
+# out the other.
+#
+# NOT independently confirmed from a primary source (same provenance
+# block hit everywhere else in this file) - MOT_SPOOL_TIME is believed
+# to be the real parameter name from general ArduCopter knowledge, not
+# verified against current source. Set deliberately low here (not off -
+# I'm not aware of a way to disable spooling entirely) so the test has a
+# sharper signature than the last four "did the exact same thing happen
+# or not" guesses: if this is the real gating timer, the ~0.6s-flat-
+# then-ramp-to-floor shape should visibly SPEED UP, not just disappear
+# or stay identical - watch the TIMING on the next diagnostic hold, not
+# just whether it still happens.
+#
+# Nov 7, 2026 (same night, later) - the prediction above came true, cleanly:
+# with MOT_SPOOL_TIME at 0.1, the next diagnostic hold's real rotor PWM was
+# still flat ~1150 through t=0.1s (same as every prior run), then was
+# ALREADY pinned at the 1100 floor by t=0.2s, and stayed dead flat at 1100
+# for the remaining second of the hold. Every prior run (MOT_SPOOL_TIME at
+# whatever its default was) took until roughly t=0.9-1.1s to bottom out.
+# Shrinking this parameter ~5-10x compressed the collapse by roughly the
+# same factor - the first time tonight a parameter change produced a
+# PROPORTIONAL timing shift instead of a flat "no effect" or "same thing
+# happened anyway," which is a much harder result to get by accident.
+#
+# Confirming test, the other direction: with MOT_SPOOL_TIME set to 10,
+# the vehicle never even reached 6m in GUIDED within the 20s climb
+# timeout - no diagnostic hold data at all that run. This fetched
+# straight from ArduPilot's own source this time (libraries/AP_Motors/
+# AP_MotorsMulticopter.cpp, GitHub, Nov 7 2026), not general knowledge:
+# MOT_SPOOL_TIME ("SPOOL_TIME", @Range 0.05-2, no upper clamp in code,
+# only a lower one) sets _spool_up_time, and the SAME variable gates the
+# SPOOLING_UP throttle-ceiling ramp used right after every arm+takeoff
+# in EVERY flight mode, not just the STABILIZE-only spool-down ramp
+# tested above (spool_step = _dt_s / _spool_up_time, both directions).
+# At 10 seconds that ramp isn't done until most of the 20s climb window
+# has already elapsed, so this wasn't a new unrelated bug - it's the
+# same real, now source-confirmed lever, just hit from the other side.
+# Reverting to ArduCopter's own compiled default (removing the override
+# entirely) rather than guessing a "safe" middle value, now that a much
+# more likely root cause has been found below - see SYSID_MYGCS.
+
+# Nov 7, 2026 - the actual root cause, found by reading ArduPilot's own
+# MAVLink override handler and MAVROS's own UAS source tonight (GitHub,
+# both primary source, not guesses):
+#   libraries/GCS_MAVLink/GCS_Common.cpp, handle_rc_channels_override():
+#     "if (!gcs().sysid_is_gcs(msg.sysid)) { return; }
+#      // Only accept control from our gcs"
+#   libraries/GCS_MAVLink/GCS.cpp: AP_GROUPINFO("_GCS_SYSID", ..., 255)
+#     - the GCS-sysid-allowlist param defaults to 255.
+#   mavros/src/lib/mavros_uas.cpp, UAS::UAS(): "source_system(target_system_)"
+#     - MAVROS sends every message it transmits to the FC, override
+#       included, using the SAME sysid as its own tgt_system arg, which
+#       apm.launch defaults to 1 (matching ArduCopter's own default
+#       SYSID_THISMAV=1) - MAVROS never introduces a separate "GCS" id
+#       of its own unless told to.
+# Put together: every single RC_CHANNELS_OVERRIDE message this script
+# has sent all night, no matter how correct the ROS2/MAVROS side of it
+# was (and we DID find and fix a real bug there too - the QoS mismatch
+# a few runs back), has been arriving at the FC as sysid=1 and getting
+# silently discarded at this exact one-line gate before it ever reaches
+# RC_Channels::set_override() - because 1 != 255. This fits every
+# symptom tonight at once: constant commanded PWM having zero effect,
+# /mavros/rc/in's rc_in_thr sitting at 1000 no matter what we send (it's
+# reporting ArduPilot's own fallback raw input, because the override
+# never registers), and RC_OVERRIDE_TIME changing nothing (there was
+# never an active override for it to time out). Fix: make the FC accept
+# sysid 1 as a valid GCS, matching what MAVROS actually sends, instead
+# of trying to make MAVROS pretend to be sysid 255.
+#
+# Nov 7, 2026 (same night, minutes later) - that run came back IDENTICAL:
+# same ~1s collapse, same abort altitude, rc_in_thr still pinned at 1000.
+# The mechanism above is still right, but I wrote it down wrong. Checked
+# ArduPilot's own Tools/scripts/convert_params_4_7.py (GitHub, primary
+# source): `cps.Rename('SYSID_MYGCS', 'MAV_GCS_SYSID')` - SYSID_MYGCS is
+# the OLD name. This firmware's current parameter table uses the new
+# name below; the rename table only migrates a value already stored
+# under the old name, it doesn't make a fresh --defaults-file entry
+# under the old name do anything. My line almost certainly loaded as an
+# unrecognized parameter and was silently ignored - same bug, wrong key.
+MAV_GCS_SYSID 1
+
+# Nov 8, 2026 - navigation speed and RTL behaviour. ArduPilot 4.7+ names
+# and units (metres, m/s); the old WPNAV_SPEED / RTL_ALT (cm) names were
+# renamed in 4.7. Applied on every fresh SITL boot via --add-param-file.
+#
+# WP_SPD 3 m/s (a deliberate cap): Shadow hovers at ~70% throttle,
+# so hard acceleration costs height - a 12 m go_to leg at 1 m altitude
+# ended on the ground. Gentler speed + acceleration = shallower tilt.
+WP_SPD 3.0
+WP_ACC 1.5
+# RTL: return at 3 m (inside shadow/limits.py's 6 m ceiling; the old
+# 15 m default would trip limits() mid-return), land all the way at home.
+RTL_ALT_M 3.0
+RTL_ALT_FINAL_M 0
+
+# Nov 9, 2026 - LiDAR (lidar_2d in model.sdf, RPLIDAR A2M12 on the real
+# build). lidar_bridge.py sends 72 x 5 deg OBSTACLE_DISTANCE messages
+# through MAVROS's obstacle plugin. Names checked against ArduPilot
+# master source (metres throughout).
+# PRX1_TYPE 2 = MAVLink. If the bridge is not running, ArduPilot blocks
+# arming with "PRX1: No Data" - set PRX1_TYPE 0 to fly without LiDAR.
+PRX1_TYPE 2
+PRX1_MIN 0.3
+PRX1_MAX 12
+# Nov 9 (later) - ROLLED BACK. With BendyRuler on, every go_to and
+# follow_path timed out (go_to had passed 12 in a row before), Shadow
+# swung off course, and RTL failed limits() instead of landing home.
+# Avoidance stays OFF for normal flying until the dedicated avoid test
+# proves it. LiDAR data still reaches ArduPilot (PRX1 above) and the
+# radar; it just doesn't steer the drone.
+# AVOID_ENABLE 1 = fence only (proximity bit off), same behaviour as
+# before the LiDAR existed.
+AVOID_ENABLE 1
+AVOID_MARGIN 1.0
+OA_TYPE 0
+OA_MARGIN_MAX 1.5
+GUID_OPTIONS 0

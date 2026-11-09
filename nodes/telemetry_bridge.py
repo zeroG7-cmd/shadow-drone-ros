@@ -16,12 +16,13 @@ Real MAVROS topics used, each confirmed against MAVROS's actual plugin
 list from tonight's own logs, not guessed:
   /mavros/state                    -> flight_mode
   /mavros/battery                  -> battery_voltage, battery_percentage
-  /mavros/global_position/global   -> latitude, longitude, altitude
-  /mavros/local_position/pose      -> roll, pitch, yaw (via quaternion)
+  /mavros/global_position/global   -> latitude, longitude
+  /mavros/local_position/pose      -> altitude (relative, local z), roll, pitch, yaw (via quaternion)
   /mavros/local_position/velocity_local -> velocity_x/y/z
 """
 
 import math
+import signal
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -86,12 +87,51 @@ class TelemetryBridge(Node):
             self.get_logger().warn(f'Database folder does not exist: {DB_PATH.parent} '
                                     '- check DB_PATH matches config.py')
 
+        self._reconcile_stale_runs()
+
         self.simulation_run_id = self._start_simulation_run()
 
         self.timer = self.create_timer(WRITE_INTERVAL_SECONDS, self._write_row)
         self.get_logger().info(f'Telemetry bridge started, run id '
                                 f'{self.simulation_run_id}, writing to '
                                 f'{DB_PATH} every {WRITE_INTERVAL_SECONDS}s')
+
+    def _reconcile_stale_runs(self):
+        """Close out any simulation_runs rows still marked 'running' from a
+        previous session that never shut down cleanly (killed terminal,
+        closed Gazebo, SIGKILL, machine sleep, etc). A stale run's real end
+        time is approximated from the last telemetry sample actually logged
+        for it - the best available evidence of when it really stopped -
+        falling back to its own started_at (i.e. zero duration) if it never
+        got that far. Marked 'interrupted', not 'completed', since
+        destroy_node() never actually confirmed a clean shutdown for these.
+        Runs on every startup, so this never lets stale rows pile back up.
+        """
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            try:
+                stale = conn.execute(
+                    "SELECT id, started_at FROM simulation_runs WHERE status = 'running'"
+                ).fetchall()
+                for run_id, started_at in stale:
+                    last_sample = conn.execute(
+                        "SELECT MAX(timestamp) FROM simulated_telemetry WHERE simulation_run_id = ?",
+                        (run_id,),
+                    ).fetchone()[0]
+                    conn.execute(
+                        "UPDATE simulation_runs SET status = ?, completed_at = ? WHERE id = ?",
+                        ('interrupted', last_sample or started_at, run_id),
+                    )
+                conn.commit()
+                if stale:
+                    self.get_logger().info(
+                        f'Reconciled {len(stale)} stale "running" simulation_runs row(s) '
+                        f'from previous session(s) into "interrupted".'
+                    )
+            finally:
+                conn.close()
+        except sqlite3.Error as e:
+            self.get_logger().error(f'Failed to reconcile stale simulation_runs rows: {e}')
 
     def _start_simulation_run(self):
         conn = sqlite3.connect(str(DB_PATH))
@@ -102,8 +142,17 @@ class TelemetryBridge(Node):
             ) VALUES (?, ?, ?, ?, ?)
             """,
             (
-                'gazebo-classic',
-                'living_room',
+                # Oct 26, 2026 (even later) - 'gazebo-classic'/'living_room'
+                # were stale from the old PX4 Gazebo-Classic stack, never
+                # updated when the project moved to ArduPilot + Gazebo
+                # Harmonic (see simulation_control.py's own ALLOWED_WORLDS
+                # comment - shadow_runway is the only world that actually
+                # exists now). Every report in the Training Log was
+                # correctly logging real telemetry, just mislabeling which
+                # simulator/world it came from - caught from Zer0's own
+                # "it's not in my living room... that's a bug right there."
+                'ardupilot-gazebo',
+                'shadow_runway',
                 'shadow',
                 'running',
                 datetime.now(timezone.utc).isoformat(),
@@ -125,9 +174,22 @@ class TelemetryBridge(Node):
     def _gps_cb(self, msg):
         self.latitude = msg.latitude
         self.longitude = msg.longitude
-        self.altitude = msg.altitude
+        # altitude no longer comes from here (see _pose_cb below) - this
+        # message's altitude is global/MSL, dominated by whatever the
+        # SITL home location's elevation happens to be (logged here as
+        # ~603-606m for the living_room scenario). A real climb/hover/
+        # descent only ever moved that number by a few metres on top of
+        # a 600+ metre offset, which is why the Training Log's altitude
+        # chart looked flat and meaningless - it was technically correct,
+        # just plotting the wrong field for "how high is Shadow right
+        # now."
 
     def _pose_cb(self, msg):
+        # local_position/pose's z is relative to wherever Shadow's EKF
+        # origin/home was set this run (ENU local frame) - actually "how
+        # high above the floor," which is what a hover/landing profile
+        # in the Training Log should show. Oct 26, 2026 (even later) fix.
+        self.altitude = msg.pose.position.z
         q = msg.pose.orientation
         self.roll, self.pitch, self.yaw = quaternion_to_euler(q.x, q.y, q.z, q.w)
 
@@ -181,6 +243,16 @@ class TelemetryBridge(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = TelemetryBridge()
+
+    def _handle_sigterm(signum, frame):
+        # Translate a SIGTERM (e.g. a process manager or `kill` stopping this
+        # node) into the same clean-shutdown path a Ctrl+C already takes, so
+        # destroy_node() gets a chance to mark this run 'completed' instead
+        # of leaving it stuck as 'running' for the next startup to reconcile.
+        raise KeyboardInterrupt()
+
+    signal.signal(signal.SIGTERM, _handle_sigterm)
+
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

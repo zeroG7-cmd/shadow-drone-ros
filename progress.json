@@ -1,30 +1,58 @@
 {
+  "approach_target": {
+    "streak": 1,
+    "unlocked": false
+  },
   "arm": {
-    "streak": 3,
+    "streak": 4,
     "unlocked": true
   },
   "deliver_payload": {
     "streak": 0,
     "unlocked": false
   },
+  "delivery_rehearsal": {
+    "streak": 2,
+    "unlocked": false
+  },
+  "follow_path": {
+    "streak": 0,
+    "unlocked": true
+  },
   "go_to": {
-    "streak": 18,
+    "streak": 0,
     "unlocked": true
   },
   "hover": {
-    "streak": 0,
+    "streak": 1,
     "unlocked": false
   },
   "land": {
-    "streak": 10,
+    "streak": 7,
     "unlocked": true
   },
   "learned_flight": {
     "streak": 0,
     "unlocked": false
   },
-  "takeoff": {
+  "map_area": {
+    "streak": 0,
+    "unlocked": false
+  },
+  "rtl": {
+    "streak": 2,
+    "unlocked": true
+  },
+  "search": {
     "streak": 3,
     "unlocked": true
+  },
+  "takeoff": {
+    "streak": 1,
+    "unlocked": true
+  },
+  "waypoint_circuit": {
+    "streak": 0,
+    "unlocked": false
   }
 }

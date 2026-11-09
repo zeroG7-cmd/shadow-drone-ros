@@ -37,6 +37,8 @@ run multiple skills concurrently, that's a reason to revisit this
 choice, not a reason to pre-build async plumbing nobody's using yet.
 """
 
+import math
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
@@ -158,7 +160,7 @@ class ArduPilotBody(Node):
             self.get_logger().error(f'takeoff({altitude_m}m) was rejected.')
         return ok
 
-    def send_position_setpoint(self, x, y, z):
+    def send_position_setpoint(self, x, y, z, yaw=None):
         """Streams one position setpoint in MAVROS's local ENU frame,
         relative to the arm point - same frame and message type
         mission_planner.py used for PX4, which MAVROS abstracts the
@@ -189,12 +191,71 @@ class ArduPilotBody(Node):
         degree heading, the camera ends up looking somewhere that math
         doesn't expect. Using the message's own real constants instead
         of hand-rolled literals removes this whole bug class rather
-        than just patching two numbers."""
+        than just patching two numbers.
+
+        Nov 5, 2026 - added the optional `yaw` parameter. Every
+        existing caller (go_to.py, agility_circuit_env.py,
+        deliver_payload.py) calls this with no third argument and gets
+        EXACTLY the Oct 25 behaviour, unchanged: IGNORE_YAW and
+        IGNORE_YAW_RATE both set, target.yaw left at its default (0.0)
+        and ignored by ArduPilot either way. Passing an actual
+        yaw_rad clears both ignore bits and streams that heading as a
+        real commanded setpoint, for skills (multi_target_env.py) where
+        the policy needs to control heading, not just position. This
+        was never a flag sitting there half-used - before this change
+        nothing in the codebase could command yaw through this method
+        at all, ignored or otherwise.
+
+        Nov 6, 2026 - found the same bug class a third time, one layer
+        deeper: type_mask never ignored velocity or acceleration
+        either, and target.velocity/target.acceleration were never
+        assigned (so they silently default to exactly zero). Per
+        MAVLink's SET_POSITION_TARGET_LOCAL_NED convention, a field
+        that isn't marked ignored is a real commanded value, not "I
+        don't care" - so every setpoint sent here was telling
+        ArduCopter "go to this position" AND "hold exactly zero
+        velocity" AND "hold exactly zero acceleration" at the same
+        time, fighting itself the same way the yaw/yaw_rate bugs above
+        did. Standard pure-position-control convention (every mavros/
+        MAVSDK goto example) ignores velocity and acceleration too, so
+        the flight controller derives them itself from the position
+        error instead of being handed a conflicting zero target. Zer0
+        flagged the flight during generate_dataset.py's rapid
+        re-targeting as visibly rougher than anything the Skills-layer
+        testing (go_to/hover/etc.) showed - far more aggressive
+        re-targeting than those exercised, and exactly the usage
+        pattern this would bite hardest."""
         target = PositionTarget()
         target.header.stamp = self.get_clock().now().to_msg()
         target.header.frame_id = 'map'
         target.coordinate_frame = PositionTarget.FRAME_LOCAL_NED
-        target.type_mask = PositionTarget.IGNORE_YAW | PositionTarget.IGNORE_YAW_RATE
+        ignore_vel_accel = (
+            PositionTarget.IGNORE_VX | PositionTarget.IGNORE_VY | PositionTarget.IGNORE_VZ |
+            PositionTarget.IGNORE_AFX | PositionTarget.IGNORE_AFY | PositionTarget.IGNORE_AFZ
+        )
+        if yaw is None:
+            target.type_mask = (
+                ignore_vel_accel |
+                PositionTarget.IGNORE_YAW | PositionTarget.IGNORE_YAW_RATE
+            )
+        else:
+            # Nov 5, 2026 fix - this originally left type_mask at its
+            # default (0, nothing ignored) whenever a yaw was given,
+            # which meant the message claimed to carry BOTH a real yaw
+            # target AND a real yaw_rate target - and target.yaw_rate
+            # was never set, so that second claim was always "hold
+            # exactly 0 rad/s," fighting the first claim any time the
+            # commanded yaw differs from the current one (which is most
+            # ticks, since callers pick a fresh heading each time, not
+            # a smooth ramp). Confirmed live: generate_dataset.py
+            # started flipping Shadow over after roughly 100 frames of
+            # exactly this - wide random-yaw viewpoints. Only yaw_rate
+            # needs to be ignored here, not yaw itself - this is the
+            # mirror image of the Oct 25 fix above (that one needed
+            # IGNORE_YAW set when yaw wasn't actually being commanded;
+            # this one needs IGNORE_YAW_RATE set when yaw_rate isn't).
+            target.type_mask = ignore_vel_accel | PositionTarget.IGNORE_YAW_RATE
+            target.yaw = float(yaw)
         target.position.x = float(x)
         target.position.y = float(y)
         target.position.z = float(z)
@@ -215,6 +276,47 @@ class ArduPilotBody(Node):
             return None
         p = self.pose.pose.position
         return (p.x, p.y, p.z)
+
+    def current_yaw(self):
+        """Current heading in radians, ENU convention (0 = facing +x,
+        positive = counter-clockwise viewed from above), decoded from
+        MAVROS's own pose quaternion. Returns None under the same
+        condition current_position() does - no pose estimate yet.
+
+        Added Nov 5, 2026 alongside send_position_setpoint's new yaw
+        parameter - until now nothing read this back either; Skills
+        and environments only ever asked where Shadow was, never which
+        way it was facing. Standard quaternion-to-yaw extraction
+        (atan2 of the z-rotation terms), same convention ArduPilot/
+        MAVROS use for PositionTarget.yaw, so a value read here and a
+        value sent to send_position_setpoint's yaw argument are
+        directly comparable without any extra conversion."""
+        if not self.have_pose:
+            return None
+        q = self.pose.pose.orientation
+        siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
+        cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+        return math.atan2(siny_cosp, cosy_cosp)
+
+    def current_orientation_quat(self):
+        """(x, y, z, w) body-to-world orientation, straight off MAVROS's
+        pose - the SAME quaternion current_yaw() above reads, just not
+        thrown away down to one angle. Returns None under the same
+        condition current_position() does - no pose estimate yet.
+
+        Added Nov 6, 2026 for generate_dataset.py's box labelling: Shadow
+        has no gimbal (deliver_payload.py's own documented assumption -
+        the front camera is rigid on the airframe), so the camera's real
+        attitude is the full body attitude, pitch/roll included, not
+        just its heading. ArduCopter pitches/rolls the whole airframe to
+        hold or correct a position, so a hovering/correcting Shadow is
+        essentially never exactly level - current_yaw() alone can't
+        reconstruct that, it already discards the pitch/roll terms this
+        reads out whole."""
+        if not self.have_pose:
+            return None
+        q = self.pose.pose.orientation
+        return (q.x, q.y, q.z, q.w)
 
     def is_armed(self):
         return bool(self.state.armed)

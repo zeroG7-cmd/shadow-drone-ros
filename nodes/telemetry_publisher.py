@@ -68,7 +68,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 from mavros_msgs.msg import State, RCOut
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Imu, BatteryState
 
 DEFAULT_OUTPUT_PATH = os.path.expanduser(
     '~/shadow_sim_runtime/telemetry/latest.json')
@@ -113,6 +113,7 @@ class TelemetryPublisher(Node):
         self._rc_out = None
         self._imu_filtered = None
         self._imu_raw = None
+        self._battery = None  # Nov 9, 2026 - for the Sim Bay telemetry panel
 
         self.create_subscription(State, '/mavros/state', self._state_cb, qos)
         self.create_subscription(
@@ -122,6 +123,8 @@ class TelemetryPublisher(Node):
             Imu, '/mavros/imu/data', self._imu_filtered_cb, qos)
         self.create_subscription(
             Imu, '/mavros/imu/data_raw', self._imu_raw_cb, qos)
+        self.create_subscription(
+            BatteryState, '/mavros/battery', self._battery_cb, qos)
 
         self.create_timer(1.0 / rate_hz, self._write_snapshot)
 
@@ -157,6 +160,9 @@ class TelemetryPublisher(Node):
     def _imu_raw_cb(self, msg):
         self._imu_raw = msg
 
+    def _battery_cb(self, msg):
+        self._battery = msg
+
     # ---- the one thing this node does on its own clock ----------------
 
     def _write_snapshot(self):
@@ -189,6 +195,17 @@ class TelemetryPublisher(Node):
 
         if self._imu_raw is not None:
             snapshot['imu_raw'] = _imu_to_dict(self._imu_raw)
+
+        # Nov 9, 2026 - battery (SITL simulates one). percentage is 0..1,
+        # or NaN/-1 when ArduPilot doesn't know (no capacity set).
+        if self._battery is not None:
+            b = self._battery
+            pct = b.percentage
+            snapshot['battery'] = {
+                'voltage': round(float(b.voltage), 2),
+                'current': None if b.current != b.current else round(float(b.current), 2),
+                'percentage': None if (pct != pct or pct < 0) else round(float(pct), 3),
+            }
 
         # Write to a temp file in the same directory, then atomically
         # rename over the real path - a reader (the Flask route) can

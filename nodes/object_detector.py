@@ -49,19 +49,47 @@ instead of via cv_bridge.cv2_to_imgmsg, so this script no longer
 depends on cv_bridge or its numpy-ABI fragility at all.
 """
 
+"""
+Nov 8, 2026 - added the colour-blind object tracker (object_tracker.py,
+same folder) alongside the original orange detection. Two outputs now,
+deliberately separate:
+
+  /shadow/target_position  (geometry_msgs/Point) - UNCHANGED. Still the
+      original orange-only, largest-blob logic. deliver_payload.py and
+      PayloadSensor read this, and must keep ignoring the blue/green/
+      purple distractors until a real classifier (YOLO) exists.
+  /shadow/detection/track  (std_msgs/Float32MultiArray) - NEW. The
+      tracker's output: [state, cx, cy, w, h, hits, misses], positions
+      and sizes normalised 0..1 to the frame. state 0 = nothing,
+      1 = tracking (yellow), 2 = locked (green). The FPV overlay draws
+      THIS, so the box on screen is now the real tracked box.
+
+Tracker mode comes from the SHADOW_TRACK_MODE env var: "any" (default,
+any strongly coloured object) or "orange" (match what the mission
+targets). /shadow/detection_mask and /shadow/detection_debug now show
+the tracker's mask and overlay.
+"""
+
 import os
+import sys
 # Must be set before gz.msgs10 is ever imported - see the identical
 # comment in sim_camera_stream.py for why (old-style generated
 # protobuf code vs. a newer protobuf runtime on this machine).
 os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
 
+import threading
+import time
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Float32MultiArray
 import cv2
 import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import object_tracker as ot  # noqa: E402  (same folder; launched with plain python3)
 
 from gz.transport13 import Node as GzNode
 from gz.msgs10.image_pb2 import Image as GzImage
@@ -107,22 +135,68 @@ class ObjectDetector(Node):
         self.mask_debug_pub = self.create_publisher(
             Image, '/shadow/detection_mask', 10)
 
+        self.track_pub = self.create_publisher(
+            Float32MultiArray, '/shadow/detection/track', 10)
+
         self.lower_orange = np.array([5, 100, 100])
         self.upper_orange = np.array([25, 255, 255])
+
+        self.track_mode = os.environ.get('SHADOW_TRACK_MODE', ot.MODE_ANY).strip().lower()
+        if self.track_mode not in (ot.MODE_ANY, ot.MODE_ORANGE):
+            self.track_mode = ot.MODE_ANY
+        self.tracker = ot.Tracker()
+
+        self._frame_lock = threading.Lock()
+        self._pending = None       # newest unprocessed frame
+        self._received = 0         # frames arrived from Gazebo
+        self._dropped = 0          # frames skipped because a newer one arrived first
+        self._proc_ms = 0.0        # time to process the last frame
+        self._last_mask_pub = 0.0
+        self._last_stats = (time.monotonic(), 0, 0)
 
         self._frame_count = 0
 
         self.get_logger().info('Object detector started, watching '
-                                f'gz-transport topic "{GZ_TOPIC}" for '
-                                'the orange payload...')
+                                f'gz-transport topic "{GZ_TOPIC}". Mission output: '
+                                f'orange only. Tracker mode: {self.track_mode}.')
 
+    # Nov 8, 2026 (second pass) - LATEST-FRAME-ONLY processing.
+    # Live test showed the FPV box sitting where the target appeared
+    # from ground level while Shadow hovered at 2 m: the detector ran at
+    # ~10.7 fps (30 frames per ~2.8 s in the log) against a faster
+    # camera, so frames queued up and the box was drawn from frames
+    # that were increasingly old. Now the gz callback only stores the
+    # newest frame (cheap) and a worker thread always processes the
+    # most recent one, dropping any it couldn't get to. The box can lag
+    # by at most one processing step, never by a growing backlog.
     def gz_image_cb(self, gz_msg: GzImage):
+        with self._frame_lock:
+            if self._pending is not None:
+                self._dropped += 1
+            self._pending = (bytes(gz_msg.data), gz_msg.height, gz_msg.width, gz_msg.step)
+            self._received += 1
+
+    def worker_loop(self):
+        while rclpy.ok():
+            with self._frame_lock:
+                item, self._pending = self._pending, None
+            if item is None:
+                time.sleep(0.003)
+                continue
+            t0 = time.monotonic()
+            try:
+                self.process_frame(*item)
+            except Exception as exc:  # never let one bad frame kill the detector
+                self.get_logger().warn(f'frame processing failed: {exc}')
+            self._proc_ms = (time.monotonic() - t0) * 1000.0
+
+    def process_frame(self, data, height_px, width_px, step):
         # Same decode as sim_camera_stream.py's image_callback - see
         # that file's comments for why msg.step (not width*3) is the
         # right row stride to use.
-        raw = np.frombuffer(gz_msg.data, dtype=np.uint8).reshape(gz_msg.height, gz_msg.step)
-        rgb = raw[:, : gz_msg.width * 3].reshape(gz_msg.height, gz_msg.width, 3)
-        frame = rgb[:, :, ::-1]  # Gazebo sends RGB; cv2 wants BGR
+        raw = np.frombuffer(data, dtype=np.uint8).reshape(height_px, step)
+        rgb = raw[:, : width_px * 3].reshape(height_px, width_px, 3)
+        frame = np.ascontiguousarray(rgb[:, :, ::-1])  # Gazebo sends RGB; cv2 wants BGR
 
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
@@ -148,8 +222,28 @@ class ObjectDetector(Node):
             mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         point = Point()  # defaults to (0,0,0) - z=0 means "not detected"
-        debug_frame = frame.copy()
 
+        # --- Tracker (colour-blind by default) - drives the FPV box ---
+        height, width = frame.shape[:2]
+        track_mask = ot.make_mask(frame, self.track_mode)
+        status = self.tracker.update(ot.find_candidates(track_mask), width, height)
+        track_msg = Float32MultiArray()
+        track_msg.data = status['flat']
+        self.track_pub.publish(track_msg)
+        if self._frame_count % 30 == 0:
+            now = time.monotonic()
+            t_prev, rx_prev, done_prev = self._last_stats
+            dt = max(1e-6, now - t_prev)
+            self._last_stats = (now, self._received, self._frame_count)
+            self.get_logger().info(
+                f'Tracker: state={status["state"]} hits={status["hits"]} '
+                f'misses={status["misses"]} mode={self.track_mode} | '
+                f'camera {(self._received - rx_prev) / dt:.1f} fps, '
+                f'processed {(self._frame_count - done_prev) / dt:.1f} fps, '
+                f'{self._proc_ms:.0f} ms/frame, dropped {self._dropped} total')
+        debug_frame = ot.draw_overlay(frame, status) if self.debug_image_pub.get_subscription_count() > 0 else frame
+
+        # --- Mission output (orange only, unchanged logic) ---
         if contours:
             largest = max(contours, key=cv2.contourArea)
             area = cv2.contourArea(largest)
@@ -164,16 +258,17 @@ class ObjectDetector(Node):
                 point.y = (cy - height / 2) / (height / 2)
                 point.z = area
 
-                # The actual box, drawn for the debug view only.
-                x, y, w, h = cv2.boundingRect(largest)
-                cv2.rectangle(debug_frame, (x, y), (x + w, y + h),
-                              (0, 255, 0), 2)
-                cv2.circle(debug_frame, (int(cx), int(cy)), 4,
-                          (0, 0, 255), -1)
-
         self.detection_pub.publish(point)
-        self.debug_image_pub.publish(numpy_to_image_msg(debug_frame, 'bgr8', header))
-        self.mask_debug_pub.publish(numpy_to_image_msg(mask, 'mono8', header))
+        # Building a ROS Image from Python is slow (it copies ~900 KB per
+        # colour frame), which is a big part of why this ran at ~11 fps.
+        # Debug image: only when something is actually subscribed. Mask:
+        # throttled to ~3 Hz for the /mask view in sim_camera_stream.py.
+        if self.debug_image_pub.get_subscription_count() > 0:
+            self.debug_image_pub.publish(numpy_to_image_msg(debug_frame, 'bgr8', header))
+        now = time.monotonic()
+        if now - self._last_mask_pub >= 0.33 and self.mask_debug_pub.get_subscription_count() > 0:
+            self._last_mask_pub = now
+            self.mask_debug_pub.publish(numpy_to_image_msg(track_mask, 'mono8', header))
 
 
 def main(args=None):
@@ -186,6 +281,9 @@ def main(args=None):
         node.get_logger().error(
             f'Failed to subscribe to gz-transport topic "{GZ_TOPIC}" - '
             f'node.subscribe() returned false.')
+
+    worker = threading.Thread(target=node.worker_loop, daemon=True)
+    worker.start()
 
     try:
         # gz-transport delivers frames on its own background thread
