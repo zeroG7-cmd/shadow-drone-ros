@@ -335,3 +335,9 @@ AVOID_MARGIN 1.0
 OA_TYPE 0
 OA_MARGIN_MAX 1.5
 GUID_OPTIONS 0
+
+# Nov 12, 2026 - yaw rate limit. Unlimited (0), ArduPilot asked for 150 deg/s
+# in a 180 deg turn; the MK1 sim only achieves ~60 deg/s, so the CW front motor
+# (motor 3) saturated, lift dropped and Shadow fell from 1.7 m to the ground
+# (log 00000108.BIN, "Potential Thrust Loss (3)"). Cap within what it can do.
+ATC_RATE_Y_MAX 60

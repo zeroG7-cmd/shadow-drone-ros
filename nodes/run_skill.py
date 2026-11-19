@@ -46,6 +46,17 @@ from shadow.skills import (
     ApproachTargetSkill,
     FollowTargetSkill,
     DeliveryRehearsalSkill,
+    HoverHoldTrial,
+    StepResponseTrial,
+    TurnTrial,
+    ClimbTrial,
+    SpeedTrial,
+    GoToTrial,
+    LapTrial,
+    DetectionTrial,
+    DisturbanceTrial,
+    LandingTrial,
+    make_trial_suite,
 )
 
 #  Oct 26, 2026 (even later) - the agility_circuit checkpoint, for the
@@ -78,6 +89,21 @@ SKILLS = {
     'approach_target': lambda body, args: ApproachTargetSkill(body),
     'follow_target': lambda body, args: FollowTargetSkill(body, move_target=args.move_target),
     'delivery_rehearsal': lambda body, args: DeliveryRehearsalSkill(body),
+    # Nov 9, 2026 - attribute engine trials (shadow/skills/trials.py). They
+    # measure, score against config/attributes.json and save to
+    # the R&D database (zerogravity_rnd.db, attribute_trials). Pass = completed a measurement.
+    'trial_hover_hold': lambda body, args: HoverHoldTrial(body),
+    'trial_step_response': lambda body, args: StepResponseTrial(body),
+    'trial_turn': lambda body, args: TurnTrial(body),
+    'trial_climb': lambda body, args: ClimbTrial(body),
+    # Nov 12, 2026 - the rest of the stats (see trials.py docstring).
+    'trial_speed': lambda body, args: SpeedTrial(body),
+    'trial_goto': lambda body, args: GoToTrial(body),
+    'trial_lap': lambda body, args: LapTrial(body),
+    'trial_detection': lambda body, args: DetectionTrial(body),
+    'trial_disturbance': lambda body, args: DisturbanceTrial(body),
+    'trial_landing': lambda body, args: LandingTrial(body),
+    'trial_suite': lambda body, args: make_trial_suite(body),
     # Tier 3 - the first real mission. Needs shadow_runway.sdf's 5
     # payload props + delivery_pad (added Oct 24, 2026) and the
     # widened 13.0m geofence in shadow/limits.py; takes no extra CLI

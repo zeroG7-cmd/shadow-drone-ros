@@ -70,6 +70,8 @@ class FollowTargetSkill(Skill):
         self._ticks = self._in_view = 0
         self._errs, self._dists = [], []
         self._travel = 0.0
+        self._streak_t = None
+        self._hold_best = 0.0
 
     def requirements(self):
         if not self.body.wait_until_connected(timeout_sec=10.0):
@@ -136,6 +138,11 @@ class FollowTargetSkill(Skill):
 
         hit = self.sensor.latest(max_age_s=0.4)
         if hit is not None:
+            self._streak_t = self._streak_t or now
+            self._hold_best = max(self._hold_best, now - self._streak_t)
+        else:
+            self._streak_t = None
+        if hit is not None:
             self._in_view += 1
             self.est = hit if self.est is None else (
                 self.est[0] + EMA * (hit[0] - self.est[0]), self.est[1] + EMA * (hit[1] - self.est[1]))
@@ -189,6 +196,14 @@ class FollowTargetSkill(Skill):
             if not DIST_MIN_M <= mean_d <= DIST_MAX_M:
                 problems.append(f'kept {mean_d:.1f} m away (wanted {DIST_MIN_M}-{DIST_MAX_M} m)')
         self.body.get_logger().info(f'follow_target: {summary}.')
+        # Nov 12 - AWARENESS / HOLD for the attribute engine: longest unbroken
+        # stretch with the moving payload in view. Only when it really moved.
+        if self.move_target and self._travel >= MIN_TRAVEL_M:
+            try:
+                from .trial_record import save_trial
+                save_trial('follow_target', {'hold_s': round(self._hold_best, 1)})
+            except Exception as exc:  # noqa: BLE001 - never fail the skill over bookkeeping
+                self.body.get_logger().warn(f'follow_target: could not save HOLD: {exc}')
         if problems:
             self.failed = '; '.join(problems)
             return False

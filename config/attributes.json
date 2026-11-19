@@ -1,0 +1,185 @@
+{
+  "_about": "Shadow attribute engine (Nov 9, 2026). Each metric: what it measures, its unit, the value that scores 100 (best) and 0 (worst), its weight inside the attribute, and the trial that measures it. Scores are computed as 100 * (value - worst) / (best - worst), clamped 0..100, then a weighted average per attribute. Labels must match BR3 in the dashboard's Attributes room. Edit best/worst here, not in the page. Rule (Nov 12): only measured values are scored. No estimates or example numbers; anything not measured stays blank.",
+  "loadout": {
+    "battery": "3S LiPo",
+    "props": "5 inch",
+    "frame": "250 mm X",
+    "payload": "none",
+    "camera": "front 640x480",
+    "battery_mah": 1500
+  },
+  "attributes": {
+    "POWER": {
+      "hover_throttle_pct": {
+        "label": "HOVER THROTTLE",
+        "unit": "%",
+        "best": 40,
+        "worst": 85,
+        "weight": 2,
+        "trial": "trial_hover_hold"
+      },
+      "climb_rate_ms": {
+        "label": "CLIMB RATE",
+        "unit": " m/s",
+        "best": 5,
+        "worst": 0.5,
+        "weight": 1,
+        "trial": "trial_climb"
+      },
+      "thrust_weight": {
+        "label": "THRUST / WEIGHT",
+        "unit": ":1",
+        "best": 3,
+        "worst": 1.2,
+        "weight": 2,
+        "trial": "trial_hover_hold (ArduPilot's learned MOT_THST_HOVER)"
+      }
+    },
+    "AGILITY": {
+      "response_s": {
+        "label": "RESPONSE",
+        "unit": " s",
+        "best": 0.4,
+        "worst": 3,
+        "weight": 2,
+        "trial": "trial_step_response"
+      },
+      "turn_rate_dps": {
+        "label": "TURN RATE",
+        "unit": " °/s",
+        "best": 180,
+        "worst": 30,
+        "weight": 1,
+        "trial": "trial_turn"
+      },
+      "top_speed_ms": {
+        "label": "TOP SPEED",
+        "unit": " m/s",
+        "best": 8,
+        "worst": 1,
+        "weight": 1,
+        "trial": "trial_speed"
+      },
+      "lap_time_s": {
+        "label": "LAP TIME",
+        "unit": " s",
+        "best": 25,
+        "worst": 90,
+        "weight": 1,
+        "trial": "trial_lap"
+      }
+    },
+    "ENDURANCE": {
+      "hover_amps": {
+        "label": "HOVER AMPS",
+        "unit": " A",
+        "best": 8,
+        "worst": 30,
+        "weight": 2,
+        "trial": "trial_hover_hold (needs a real current reading: the Gazebo sim reports 0 A, so this stays blank in sim)"
+      },
+      "flight_time_min": {
+        "label": "FLIGHT TIME",
+        "unit": " min",
+        "best": 20,
+        "worst": 4,
+        "weight": 2,
+        "trial": "trial_hover_hold (needs real current)"
+      }
+    },
+    "STABILITY": {
+      "drift_m": {
+        "label": "DRIFT",
+        "unit": " m",
+        "best": 0.05,
+        "worst": 1,
+        "weight": 2,
+        "trial": "trial_hover_hold"
+      },
+      "overshoot_pct": {
+        "label": "OVERSHOOT",
+        "unit": "%",
+        "best": 2,
+        "worst": 40,
+        "weight": 1,
+        "trial": "trial_step_response"
+      },
+      "settle_s": {
+        "label": "SETTLE",
+        "unit": " s",
+        "best": 0.8,
+        "worst": 6,
+        "weight": 1,
+        "trial": "trial_step_response"
+      },
+      "recovery_s": {
+        "label": "RECOVERY",
+        "unit": " s",
+        "best": 1,
+        "worst": 8,
+        "weight": 1,
+        "trial": "trial_disturbance"
+      }
+    },
+    "PRECISION": {
+      "goto_error_m": {
+        "label": "GO TO ERROR",
+        "unit": " m",
+        "best": 0.05,
+        "worst": 1,
+        "weight": 2,
+        "trial": "trial_goto"
+      },
+      "path_error_m": {
+        "label": "PATH ERROR",
+        "unit": " m",
+        "best": 0.1,
+        "worst": 1.5,
+        "weight": 1,
+        "trial": "trial_lap"
+      },
+      "landing_m": {
+        "label": "LANDING",
+        "unit": " m",
+        "best": 0.05,
+        "worst": 1.5,
+        "weight": 1,
+        "trial": "trial_landing"
+      }
+    },
+    "AWARENESS": {
+      "detection_pct": {
+        "label": "DETECTION",
+        "unit": "%",
+        "best": 98,
+        "worst": 50,
+        "weight": 2,
+        "trial": "trial_detection"
+      },
+      "false_alarm_pct": {
+        "label": "FALSE ALARMS",
+        "unit": "%",
+        "best": 0,
+        "worst": 25,
+        "weight": 2,
+        "trial": "trial_detection"
+      },
+      "jitter_px": {
+        "label": "JITTER",
+        "unit": " px",
+        "best": 1,
+        "worst": 20,
+        "weight": 1,
+        "trial": "trial_detection"
+      },
+      "hold_s": {
+        "label": "HOLD",
+        "unit": " s",
+        "best": 20,
+        "worst": 2,
+        "weight": 1,
+        "trial": "follow_target (moving payload)"
+      }
+    }
+  }
+}

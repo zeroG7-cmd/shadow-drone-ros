@@ -4,7 +4,7 @@
     "unlocked": false
   },
   "arm": {
-    "streak": 4,
+    "streak": 2,
     "unlocked": true
   },
   "deliver_payload": {
@@ -12,23 +12,23 @@
     "unlocked": false
   },
   "delivery_rehearsal": {
-    "streak": 2,
-    "unlocked": false
+    "streak": 0,
+    "unlocked": true
   },
   "follow_path": {
     "streak": 0,
     "unlocked": true
   },
   "go_to": {
-    "streak": 0,
+    "streak": 1,
     "unlocked": true
   },
   "hover": {
-    "streak": 1,
+    "streak": 0,
     "unlocked": false
   },
   "land": {
-    "streak": 7,
+    "streak": 0,
     "unlocked": true
   },
   "learned_flight": {
@@ -40,7 +40,7 @@
     "unlocked": false
   },
   "rtl": {
-    "streak": 2,
+    "streak": 4,
     "unlocked": true
   },
   "search": {
@@ -50,6 +50,18 @@
   "takeoff": {
     "streak": 1,
     "unlocked": true
+  },
+  "trial_climb": {
+    "streak": 1,
+    "unlocked": false
+  },
+  "trial_disturbance": {
+    "streak": 1,
+    "unlocked": false
+  },
+  "trial_suite": {
+    "streak": 0,
+    "unlocked": false
   },
   "waypoint_circuit": {
     "streak": 0,

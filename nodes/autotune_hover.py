@@ -468,7 +468,7 @@ from shadow.body import ArduPilotBody
 
 
 TAKEOFF_ALTITUDE_M = 6.0        # open-world safe altitude, well clear of ground effects
-CLIMB_TIMEOUT_SEC = 20.0        # how long to wait for the takeoff to actually reach altitude
+CLIMB_TIMEOUT_SEC = 75.0        # how long to wait for the takeoff to actually reach altitude (Nov 12: was 20.0; the MK1 sim climbs ~0.15 m/s of wall time while the sim runs at ~0.55x, so 5.5 m needs ~40 s. Wall-clock timer, so a slow sim trips it.)
 GUIDED_SETTLE_SECONDS = 5.0     # hold in GUIDED before handing off to RC override, so the
                                  # transition isn't also fighting a still-accelerating climb
 
@@ -539,6 +539,20 @@ AUTOTUNE_DESCEND_PWM = 1350      # Nov 7, 2026 - replaces the old DESCEND_THROTT
                                  # STABILIZE_SEARCH_SEED_PWM's "err safe, not aggressive" choice
                                  # above. NOT yet verified by a real run - watch the next attempt's
                                  # actual descent rate closely.
+# Nov 12 - settle gate before AUTOTUNE. Live run: the end of the GUIDED climb kicked
+# heading ~20deg (87.9 -> 108) and tilted ~1deg, and the vehicle was still swinging
+# (yaw out to ~123deg, pitch -3deg) when AUTOTUNE started. ArduCopter's level check
+# (AC_AutoTune.cpp currently_level) needs roll, pitch AND yaw within 2.5deg (relaxing
+# to 5deg after 4s) of the attitude it locked at start, and gives up after 6s
+# ("AutoTune: Failed to level"). So wait until the airframe is genuinely still first.
+SETTLE_MAX_SECONDS = 40.0       # give up waiting and go ahead anyway after this long
+SETTLE_WINDOW_SECONDS = 3.0     # must stay still for this long, continuously
+SETTLE_MAX_TILT_DEG = 1.0       # roll and pitch both inside this
+SETTLE_MAX_YAW_DRIFT_DEG = 1.5  # heading change across the window (about 0.5 deg/s)
+SETTLE_MAX_ALT_RANGE_M = 0.15   # altitude spread across the window
+TRIM_WINDOW_SECONDS = 1.5       # vz is measured over this window while settling
+TRIM_GAIN_PWM_PER_MS = 60.0     # throttle correction per m/s of vertical speed (opposing it)
+TRIM_MAX_STEP_PWM = 15.0        # clamp on any single correction, every 0.5s
 PRE_AUTOTUNE_OVERRIDE_SECONDS = 3.0   # stream the centered override before switching modes,
                                        # so there's no gap where AUTOTUNE sees no RC input at all
 OVERRIDE_RATE_HZ = 20
@@ -1025,7 +1039,11 @@ class AutotuneRunner:
         # timer - see that constant's Nov 7 docstring note for why.
         if msg.text == 'AutoTune: Success':
             self._autotune_success = True
-        elif msg.text == 'AutoTune: Failed':
+        elif msg.text.startswith('AutoTune: Failed'):
+            # Nov 12: was an exact match on 'AutoTune: Failed'. ArduCopter also
+            # sends 'AutoTune: Failed to level, please tune manually' (seen live
+            # 13s into a run), which the exact match missed, so the runner sat
+            # idle in AUTOTUNE drifting ~110m for the full 600s ceiling.
             self._autotune_failed = True
 
     def _log_autotune_params_best_effort(self):
@@ -1184,6 +1202,90 @@ class AutotuneRunner:
             'check autotune.log for which test/axis the progress messages '
             'were stalled on when this happened.')
         return 'timeout'
+
+    def _attitude_deg(self):
+        """(roll, pitch, yaw) in degrees from the MAVROS pose quaternion, or None."""
+        quat = self.body.current_orientation_quat()
+        if quat is None:
+            return None
+        x, y, z, w = quat
+        roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+        sinp = max(-1.0, min(1.0, 2.0 * (w * y - z * x)))
+        pitch = math.asin(sinp)
+        yaw = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+        return math.degrees(roll), math.degrees(pitch), math.degrees(yaw)
+
+    def _wait_until_settled(self, throttle_pwm):  # returns (settled: bool, trimmed_pwm: float)
+        """Nov 12. Keep the centered override streaming at throttle_pwm and wait
+        until roll/pitch/heading/altitude have all been still for
+        SETTLE_WINDOW_SECONDS. Returns True if settled, False on timeout (the
+        caller proceeds anyway - a possibly-failing AutoTune is better than a
+        silent abort, and the FC's own Failed message is now handled)."""
+        self.body.get_logger().info(
+            f'Waiting for the airframe to settle before AUTOTUNE (roll/pitch < '
+            f'{SETTLE_MAX_TILT_DEG}deg, heading drift < {SETTLE_MAX_YAW_DRIFT_DEG}deg '
+            f'and altitude spread < {SETTLE_MAX_ALT_RANGE_M}m over {SETTLE_WINDOW_SECONDS:.0f}s, '
+            f'up to {SETTLE_MAX_SECONDS:.0f}s)...')
+        samples = []   # (t, roll, pitch, yaw_unwrapped, alt)
+        # Nov 12 (live run): the hover search 'converged' on the 1796 PWM seed after ~1s
+        # (vz was still ~0 from the GUIDED hold) and the drone then climbed 6.9 -> 14.2m at
+        # ~0.2 m/s during the settle wait. 1796 was measured on the old, weaker-thrust sim.
+        # So trim the throttle here with a slow, clamped correction on measured vz.
+        trim_pwm = float(throttle_pwm)
+        alt_hist = []   # (t, alt) over TRIM_WINDOW_SECONDS
+        next_trim = time.monotonic() + TRIM_WINDOW_SECONDS
+        yaw_prev = None
+        yaw_unwrapped = 0.0
+        start = time.monotonic()
+        next_log = 5.0
+        while time.monotonic() - start < SETTLE_MAX_SECONDS:
+            self._stream_override_for(trim_pwm, 0.25)
+            att = self._attitude_deg()
+            pos = self.body.current_position()
+            if att is None or pos is None:
+                continue
+            _t = time.monotonic()
+            alt_hist.append((_t, pos[2]))
+            alt_hist = [x for x in alt_hist if _t - x[0] <= TRIM_WINDOW_SECONDS]
+            if pos[2] < HOVER_SEARCH_ABORT_ALTITUDE_M:
+                # sinking too low: push throttle up and keep going
+                trim_pwm = min(HOVER_SEARCH_MAX_PWM, trim_pwm + 40.0)
+            elif _t >= next_trim and (alt_hist[-1][0] - alt_hist[0][0]) >= TRIM_WINDOW_SECONDS * 0.8:
+                vz = (alt_hist[-1][1] - alt_hist[0][1]) / (alt_hist[-1][0] - alt_hist[0][0])
+                adj = max(-TRIM_MAX_STEP_PWM, min(TRIM_MAX_STEP_PWM, -TRIM_GAIN_PWM_PER_MS * vz))
+                trim_pwm = max(HOVER_SEARCH_MIN_PWM, min(HOVER_SEARCH_MAX_PWM, trim_pwm + adj))
+                next_trim = _t + 0.5
+            roll, pitch, yaw = att
+            if yaw_prev is None:
+                yaw_unwrapped = yaw
+            else:
+                d = (yaw - yaw_prev + 180.0) % 360.0 - 180.0
+                yaw_unwrapped += d
+            yaw_prev = yaw
+            now = time.monotonic()
+            samples.append((now, roll, pitch, yaw_unwrapped, pos[2]))
+            samples = [x for x in samples if now - x[0] <= SETTLE_WINDOW_SECONDS]
+            full = (samples[-1][0] - samples[0][0]) >= SETTLE_WINDOW_SECONDS * 0.9
+            if full:
+                tilt_ok = all(abs(x[1]) < SETTLE_MAX_TILT_DEG and abs(x[2]) < SETTLE_MAX_TILT_DEG for x in samples)
+                yaws = [x[3] for x in samples]
+                alts = [x[4] for x in samples]
+                yaw_ok = (max(yaws) - min(yaws)) < SETTLE_MAX_YAW_DRIFT_DEG
+                alt_ok = (max(alts) - min(alts)) < SETTLE_MAX_ALT_RANGE_M
+                if tilt_ok and yaw_ok and alt_ok:
+                    self.body.get_logger().info(
+                        f'Settled after {now - start:.1f}s (roll={roll:+.2f}, pitch={pitch:+.2f}, '
+                        f'yaw={yaw:.1f}deg, alt={pos[2]:.2f}m, trimmed throttle={trim_pwm:.0f} PWM).')
+                    return True, trim_pwm
+            if now - start >= next_log:
+                self.body.get_logger().info(
+                    f'  ...still settling, {now - start:.0f}s: roll={roll:+.2f}, pitch={pitch:+.2f}, '
+                    f'yaw={yaw:.1f}deg, alt={pos[2]:.2f}m, throttle={trim_pwm:.0f} PWM')
+                next_log += 5.0
+        self.body.get_logger().warning(
+            f'Did not fully settle within {SETTLE_MAX_SECONDS:.0f}s - proceeding to AUTOTUNE anyway '
+            f'(trimmed throttle {trim_pwm:.0f} PWM).')
+        return False, trim_pwm
 
     def _altitude_str(self):
         pos = self.body.current_position()
@@ -1636,6 +1738,8 @@ class AutotuneRunner:
                 'than tuning while climbing or sinking.')
             self._arrest_fall_and_land('Hover-throttle search failed')
             return
+
+        _settled, hover_pwm = self._wait_until_settled(hover_pwm)
 
         self.body.get_logger().info('Switching to AUTOTUNE...')
         if not self._switch_mode_confirmed('AUTOTUNE', hover_pwm):

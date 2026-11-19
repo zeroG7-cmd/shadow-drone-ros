@@ -11,8 +11,8 @@ Shadow is never level), and the ground plane gives the distance. The ray
 from the camera through the pixel is followed until it hits the height
 of the payload's centre.
 
-Camera model (model.sdf front_camera): rigidly mounted 0.16 m ahead of
-base_link, looking straight forward (no pitch), 640x480, horizontal FOV
+Camera model (model.sdf front_camera): rigidly mounted 0.137 m ahead of
+and 0.014 m above base_link (MK1, Nov 12; was 0.16 m on the old model), looking straight forward (no pitch), 640x480, horizontal FOV
 80 deg (1.3962634 rad). If the camera mount is ever tilted down (the real
 build has a pan/tilt gimbal), set CAM_PITCH_DEG to match or every
 estimate will be wrong.
@@ -35,7 +35,7 @@ Sources:
 import math
 import time
 
-CAM_OFFSET_M = (0.16, 0.0, 0.0)
+CAM_OFFSET_M = (0.137, 0.0, 0.01435)   # MK1 model.sdf front_camera pose (Nov 12)
 CAM_PITCH_DEG = 0.0                 # positive = tilted down
 TAN_HALF_HFOV = math.tan(1.3962634 / 2)
 TAN_HALF_VFOV = TAN_HALF_HFOV * 480 / 640

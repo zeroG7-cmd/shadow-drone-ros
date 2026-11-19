@@ -11,6 +11,8 @@ from .search import SearchSkill
 from .approach_target import ApproachTargetSkill
 from .follow_target import FollowTargetSkill
 from .delivery_rehearsal import DeliveryRehearsalSkill
+from .trials import (HoverHoldTrial, StepResponseTrial, TurnTrial, ClimbTrial, SpeedTrial, GoToTrial,
+                     LapTrial, DetectionTrial, DisturbanceTrial, LandingTrial, make_trial_suite)
 from .deliver_payload import DeliverPayloadSkill
 from .learned_flight import LearnedFlightSkill
 
@@ -28,6 +30,17 @@ __all__ = [
     'ApproachTargetSkill',
     'FollowTargetSkill',
     'DeliveryRehearsalSkill',
+    'HoverHoldTrial',
+    'StepResponseTrial',
+    'TurnTrial',
+    'ClimbTrial',
+    'SpeedTrial',
+    'GoToTrial',
+    'LapTrial',
+    'DetectionTrial',
+    'DisturbanceTrial',
+    'LandingTrial',
+    'make_trial_suite',
     'DeliverPayloadSkill',
     'LearnedFlightSkill',
 ]
